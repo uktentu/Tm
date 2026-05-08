@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>APEX — Albert's Operating System</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Anton&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body>
+
+    <!-- SIDEBAR -->
+    <div id="sb">
+        <div class="sb-brand">
+            <div class="sb-logo">APEX</div>
+            <div class="sb-sub">ALBERT'S OS</div>
+        </div>
+        <nav>
+            <div class="nav-grp">Daily</div>
+            <div class="nav-item active" data-view="home" onclick="go('home')">
+                <span class="ni">🌅</span> Good Morning
+            </div>
+            <div class="nav-item" data-view="today" onclick="go('today')">
+                <span class="ni">⚡</span> Today's Board
+                <span class="nav-badge" id="nb-today">0</span>
+            </div>
+            <div class="nav-item" data-view="eod" onclick="go('eod')">
+                <span class="ni">🌙</span> EOD & Work Log
+            </div>
+
+            <div class="nav-grp">Record</div>
+            <div class="nav-item" data-view="achievements" onclick="go('achievements')">
+                <span class="ni">🏆</span> Achievements
+                <span class="nav-badge" id="nb-ach">0</span>
+            </div>
+            <div class="nav-item" data-view="worklog" onclick="go('worklog')">
+                <span class="ni">📝</span> Work Log
+            </div>
+
+            <div class="nav-grp">Queue</div>
+            <div class="nav-item" data-view="backlog" onclick="go('backlog')">
+                <span class="ni">📦</span> Backlog
+                <span class="nav-badge" id="nb-backlog">0</span>
+            </div>
+            <div class="nav-item" data-view="future" onclick="go('future')">
+                <span class="ni">🔮</span> Future Inbox
+                <span class="nav-badge" id="nb-future">0</span>
+            </div>
+
+            <div class="nav-grp">Review</div>
+            <div class="nav-item" data-view="history" onclick="go('history')">
+                <span class="ni">📊</span> History & Stats
+            </div>
+            <div class="nav-item" data-view="manager" onclick="go('manager')">
+                <span class="ni">💼</span> Manager View
+            </div>
+            <div class="nav-item" data-view="habits" onclick="go('habits')">
+                <span class="ni">🔥</span> Habits
+            </div>
+        </nav>
+        <div class="sb-stats">
+            <div class="sb-stat">
+                <span class="sb-stat-lbl">🔥 Streak</span>
+                <span class="sb-stat-val" id="sb-streak">0 days</span>
+            </div>
+            <div class="sb-stat">
+                <span class="sb-stat-lbl">🏆 Achievements</span>
+                <span class="sb-stat-val" id="sb-achs">0</span>
+            </div>
+            <div class="sb-stat">
+                <span class="sb-stat-lbl">✅ Today</span>
+                <span class="sb-stat-val" id="sb-today">0/0</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN -->
+    <div id="main">
+        <div class="topbar">
+            <div>
+                <div class="tb-title" id="tb-title">Good Morning</div>
+                <div class="tb-sub" id="tb-sub">Set the tone for your day</div>
+            </div>
+            <div class="tb-right" id="tb-right"></div>
+        </div>
+
+        <div class="content" id="content">
+
+            <!-- ═══ HOME / MORNING ═══════════════════════════ -->
+            <div class="view active" id="view-home" style="height:100%; display:none; flex-direction:column;">
+
+                <div class="morning-hero">
+                    <div class="hero-top">
+                        <div>
+                            <div class="hero-greeting s1">GOOD MORNING,<br><em id="hero-name">ALBERT.</em></div>
+                        </div>
+                        <div class="hero-right s1">
+                            <div class="hero-date" id="hero-date"></div>
+                            <div class="hero-streak">
+                                <span class="fire">🔥</span>
+                                <span id="hero-streak">0</span> day streak
+                            </div>
+                        </div>
+                    </div>
+                    <div class="last-win-strip s2" id="last-win-strip">
+                        <div class="lw-label">Last Win</div>
+                        <div class="lw-line"></div>
+                        <div class="lw-content" id="lw-content">
+                            <div class="lw-empty">No achievements logged yet. Log your first win to see it here.</div>
+                        </div>
+                        <button class="btn btn-ghost btn-xs" onclick="openAchModal()">+ Log Win</button>
+                    </div>
+                </div>
+
+                <div class="morning-body">
+
+                    <div class="s2">
+                        <div class="m-label">Today's Declaration</div>
+                        <div class="morning-row">
+                            <div>
+                                <div class="m-label" style="margin-bottom:5px;">One Word</div>
+                                <input class="m-input word-input" id="m-word" type="text" maxlength="16"
+                                    placeholder="EXECUTE">
+                            </div>
+                            <div class="morning-field">
+                                <div class="m-label" style="margin-bottom:5px;">Morning Intention</div>
+                                <input class="m-input" id="m-intention" type="text"
+                                    placeholder="Today I will focus on what actually moves the needle...">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="s3">
+                        <div class="m-label">Today's Focus Items <span style="color:var(--muted); font-size:11px;">(max
+                                5)</span></div>
+                        <div class="focus-morning-list" id="fm-list"></div>
+                        <div class="quick-focus-add" style="margin-top:6px;">
+                            <input class="m-input" id="fm-input" type="text"
+                                placeholder="Add a focus item and press Enter...">
+                            <button class="btn btn-ghost btn-sm" onclick="addFocusItem()">Add</button>
+                        </div>
+
+                        <div id="backlog-pull-section" style="margin-top:12px;"></div>
+                    </div>
+
+                    <div class="s4">
+                        <div class="m-label">Today's Habits</div>
+                        <div class="habits-morning-row" id="hm-row"></div>
+                    </div>
+
+                    <div class="morning-actions s5">
+                        <button class="btn btn-amber" style="padding:11px 32px; font-size:14px; letter-spacing:1px;"
+                            onclick="lockInDay()">
+                            ⚡ LOCK IN & START THE DAY
+                        </button>
+                        <button class="btn btn-ghost" onclick="openAchModal()">+ Log Yesterday's Win</button>
+                        <div style="margin-left:auto; font-family:var(--font-m); font-size:10px; color:var(--muted);">
+                            Press <kbd
+                                style="background:var(--s3); padding:2px 5px; border-radius:2px; border:1px solid var(--border2);">1–8</kbd>
+                            to navigate
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- ═══ TODAY BOARD ══════════════════════════════ -->
+            <div class="view" id="view-today">
+                <div class="today-layout" style="padding:20px 24px; height:100%; overflow:hidden;">
+                    <div style="overflow-y:auto; padding-right:8px;">
+                        <div class="card">
+                            <div class="card-h">
+                                <div>
+                                    <div class="card-title">Active Tasks</div>
+                                    <div class="card-sub" id="today-intention-line"></div>
+                                </div>
+                                <button class="btn btn-amber btn-sm" onclick="openTaskModal('focus')">+ Add
+                                    Task</button>
+                            </div>
+                            <div id="today-active-list"></div>
+                        </div>
+                        <div id="today-done-section" style="display:none;">
+                            <button class="btn btn-ghost btn-xs" style="margin-bottom:8px;" onclick="toggleDoneList()">
+                                <span id="done-arrow">▶</span> Completed (<span id="done-count">0</span>)
+                            </button>
+                            <div id="today-done-list" style="display:none;"></div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; flex-direction:column; gap:14px; overflow-y:auto;">
+                        <div class="card" style="margin:0; flex-shrink:0;">
+                            <div class="card-title" style="margin-bottom:14px;">Focus Timer</div>
+                            <div class="pomo-wrap">
+                                <div class="pomo-ring">
+                                    <svg class="pomo-svg" width="110" height="110" viewBox="0 0 110 110">
+                                        <circle class="ring-bg" cx="55" cy="55" r="48" />
+                                        <circle class="ring-fill" id="pring" cx="55" cy="55" r="48"
+                                            stroke-dasharray="301.6" stroke-dashoffset="0" />
+                                    </svg>
+                                    <div class="pomo-center">
+                                        <div class="pomo-time" id="ptimer">25:00</div>
+                                        <div class="pomo-lbl" id="plbl">FOCUS</div>
+                                    </div>
+                                </div>
+                                <div class="pomo-btns">
+                                    <button class="btn btn-amber btn-sm" id="pbtn" onclick="togglePomo()">▶
+                                        Start</button>
+                                    <button class="btn btn-ghost btn-sm" onclick="resetPomo()">↺</button>
+                                    <button class="btn btn-ghost btn-sm" onclick="skipPomo()">⏭</button>
+                                </div>
+                                <div class="pomo-dots" id="pomo-dots"></div>
+                            </div>
+                        </div>
+
+                        <div class="card" style="margin:0;">
+                            <div class="card-title" style="margin-bottom:12px;">Today's Numbers</div>
+                            <div style="display:flex; flex-direction:column; gap:10px;">
+                                <div>
+                                    <div class="f-label">Completion</div>
+                                    <div style="display:flex; align-items:center; gap:8px;">
+                                        <div class="prog-wrap" style="flex:1;">
+                                            <div class="prog-fill" id="td-prog" style="width:0%"></div>
+                                        </div>
+                                        <span style="font-family:var(--font-m); font-size:12px; color:var(--amber);"
+                                            id="td-pct">0%</span>
+                                    </div>
+                                </div>
+                                <div style="display:flex; gap:14px;">
+                                    <div>
+                                        <div class="f-label">Pomos</div>
+                                        <div style="font-family:var(--font-m);font-size:20px;color:var(--amber);"
+                                            id="td-pomos">0</div>
+                                    </div>
+                                    <div>
+                                        <div class="f-label">Done</div>
+                                        <div style="font-family:var(--font-m);font-size:20px;color:var(--green);"
+                                            id="td-done">0</div>
+                                    </div>
+                                    <div>
+                                        <div class="f-label">Left</div>
+                                        <div style="font-family:var(--font-m);font-size:20px;color:var(--dim);"
+                                            id="td-left">0</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card" style="margin:0;">
+                            <div class="card-title" style="margin-bottom:10px;">Habits Today</div>
+                            <div id="today-habits"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ ACHIEVEMENTS ════════════════════════════ -->
+            <div class="view" id="view-achievements">
+                <div class="filter-bar" id="ach-filter-bar">
+                    <div class="chip active" onclick="filterAch('all',this)">All</div>
+                    <div class="chip chip-crit" onclick="filterAch('critical',this)">🔴 Critical Impact</div>
+                    <div class="chip" onclick="filterAch('high',this)">🟡 High Impact</div>
+                    <div class="chip chip-teal" onclick="filterAch('medium',this)">🟢 Medium</div>
+                    <div class="chip" onclick="filterAch('work',this)">Work</div>
+                    <div class="chip" onclick="filterAch('dsa',this)">DSA</div>
+                    <div class="chip" onclick="filterAch('learning',this)">Learning</div>
+                    <div class="chip" onclick="filterAch('side-project',this)">Side Project</div>
+                    <div class="search-wrap">
+                        <span class="search-icon">⌕</span>
+                        <input type="text" id="ach-search" placeholder="Search achievements..."
+                            oninput="renderAchievements()">
+                    </div>
+                </div>
+                <div class="ach-grid" id="ach-grid"></div>
+            </div>
+
+            <!-- ═══ WORK LOG ═════════════════════════════════ -->
+            <div class="view" id="view-worklog">
+                <div class="wlog-timeline" id="wlog-list"></div>
+            </div>
+
+            <!-- ═══ BACKLOG ══════════════════════════════════ -->
+            <div class="view" id="view-backlog">
+                <div class="task-layout">
+                    <div class="card">
+                        <div class="card-h">
+                            <div>
+                                <div class="card-title">Backlog</div>
+                                <div class="card-sub">Pull into Today when ready</div>
+                            </div>
+                            <div style="display:flex;gap:8px;">
+                                <div class="filter-bar" style="padding:0; margin:0;">
+                                    <div class="chip active" onclick="filterBL('all',this)">All</div>
+                                    <div class="chip" onclick="filterBL('P1',this)">P1</div>
+                                    <div class="chip" onclick="filterBL('P2',this)">P2</div>
+                                    <div class="chip" onclick="filterBL('P3',this)">P3</div>
+                                </div>
+                                <button class="btn btn-amber btn-sm" onclick="openTaskModal('backlog')">+ Add</button>
+                            </div>
+                        </div>
+                        <div id="bl-list"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ FUTURE ═══════════════════════════════════ -->
+            <div class="view" id="view-future">
+                <div class="task-layout">
+                    <div class="card">
+                        <div class="card-h">
+                            <div>
+                                <div class="card-title">Future Inbox</div>
+                                <div class="card-sub">Capture anything — schedule later</div>
+                            </div>
+                            <button class="btn btn-amber btn-sm" onclick="openTaskModal('future')">+ Capture</button>
+                        </div>
+                        <div id="ft-list"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ EOD ══════════════════════════════════════ -->
+            <div class="view" id="view-eod">
+                <div class="eod-layout">
+
+                    <div id="eod-done-banner" style="display:none;">
+                        <div class="card"
+                            style="text-align:center; padding:28px; background:var(--green-lo); border-color:rgba(62,207,142,0.3);">
+                            <div style="font-size:32px; margin-bottom:10px;">✅</div>
+                            <div class="card-title" style="color:var(--green); margin-bottom:8px;">Day Documented &
+                                Closed</div>
+                            <button class="btn btn-ghost btn-xs" onclick="reopenEOD()">Edit</button>
+                        </div>
+                    </div>
+
+                    <div id="eod-form">
+                        <div class="card">
+                            <div class="card-h">
+                                <div class="card-title">Work Narrative</div>
+                            </div>
+                            <div class="form-group">
+                                <label class="f-label">What did I actually work on today? (stream of consciousness is
+                                    fine)</label>
+                                <textarea id="eod-narrative" rows="5"
+                                    placeholder="Write it all out — what you built, what you studied, what you solved, who you helped, what decisions you made..."></textarea>
+                            </div>
+                            <div class="form-group" style="margin-bottom:0;">
+                                <label class="f-label">Key accomplishment worth logging as an Achievement?</label>
+                                <div style="display:flex; gap:8px;">
+                                    <input type="text" id="eod-quick-ach"
+                                        placeholder="e.g. Solved 15 graph problems, shipped auth feature...">
+                                    <button class="btn btn-teal btn-sm" style="white-space:nowrap;"
+                                        onclick="quickLogAch()">+ Log It</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-h">
+                                <div class="card-title">Day Scores</div>
+                            </div>
+                            <div class="score-row">
+                                <div class="score-box">
+                                    <div class="score-lbl">Focus Quality</div>
+                                    <input type="range" class="score-slider" id="eod-focus" min="1" max="10" value="7"
+                                        oninput="document.getElementById('eod-fv').textContent=this.value">
+                                    <div class="score-num" id="eod-fv">7</div>
+                                </div>
+                                <div class="score-box">
+                                    <div class="score-lbl">Energy</div>
+                                    <input type="range" class="score-slider" id="eod-energy" min="1" max="5" value="3"
+                                        oninput="document.getElementById('eod-ev').textContent=this.value">
+                                    <div class="score-num" id="eod-ev">3</div>
+                                </div>
+                                <div class="score-box">
+                                    <div class="score-lbl">Discipline</div>
+                                    <input type="range" class="score-slider" id="eod-disc" min="1" max="10" value="7"
+                                        oninput="document.getElementById('eod-dv').textContent=this.value">
+                                    <div class="score-num" id="eod-dv">7</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-h">
+                                <div class="card-title">Reflection</div>
+                            </div>
+                            <div class="form-group">
+                                <label class="f-label">What challenged me / slowed me down?</label>
+                                <textarea id="eod-challenges" rows="2"
+                                    placeholder="Distractions, blockers, unclear requirements..."></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label class="f-label">What did I learn today?</label>
+                                <textarea id="eod-learned" rows="2"
+                                    placeholder="Technical insight, behavioral lesson, anything useful..."></textarea>
+                            </div>
+                            <div class="form-group" style="margin-bottom:0;">
+                                <label class="f-label">One concrete improvement for tomorrow</label>
+                                <input type="text" id="eod-improve"
+                                    placeholder="e.g. Start deep work before checking messages...">
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-h">
+                                <div class="card-title">Tasks Review</div>
+                            </div>
+                            <div id="eod-tasks-review"></div>
+                        </div>
+
+                        <div style="display:flex; gap:10px; padding-bottom:32px;">
+                            <button class="btn btn-amber" style="padding:11px 28px; font-size:14px;"
+                                onclick="submitEOD()">
+                                🌙 Close Out the Day
+                            </button>
+                            <button class="btn btn-ghost" onclick="go('achievements')">
+                                🏆 Log an Achievement
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ HABITS ═══════════════════════════════════ -->
+            <div class="view" id="view-habits">
+                <div class="task-layout">
+                    <div class="card">
+                        <div class="card-h">
+                            <div>
+                                <div class="card-title">Daily Habits</div>
+                                <div class="card-sub">Your non-negotiables</div>
+                            </div>
+                            <button class="btn btn-amber btn-sm" onclick="openHabitModal()">+ Add Habit</button>
+                        </div>
+                        <div id="habits-full-list"></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-h">
+                            <div class="card-title">14-Day Heatmap</div>
+                        </div>
+                        <div id="habit-heatmap"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ HISTORY ══════════════════════════════════ -->
+            <div class="view" id="view-history">
+                <div class="history-layout">
+                    <div class="stat-trio" id="stat-trio"></div>
+                    <div class="card">
+                        <div class="card-h">
+                            <div class="card-title">Daily History</div>
+                        </div>
+                        <div id="history-list"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══ MANAGER VIEW ════════════════════════════ -->
+            <div class="view" id="view-manager">
+                <div class="manager-view">
+                    <div class="mv-header">
+                        <div class="mv-title">Your Professional Story</div>
+                        <div class="mv-sub">Filter and generate your negotiation arsenal — everything you've delivered,
+                            documented.</div>
+                    </div>
+
+                    <div class="mv-filters">
+                        <div>
+                            <label class="f-label">From</label>
+                            <input type="date" id="mv-from" style="width:150px;">
+                        </div>
+                        <div>
+                            <label class="f-label">To</label>
+                            <input type="date" id="mv-to" style="width:150px;">
+                        </div>
+                        <div>
+                            <label class="f-label">Category</label>
+                            <select id="mv-cat" style="width:150px;">
+                                <option value="all">All Categories</option>
+                                <option value="work">Work</option>
+                                <option value="dsa">DSA</option>
+                                <option value="system-design">System Design</option>
+                                <option value="learning">Learning</option>
+                                <option value="side-project">Side Project</option>
+                            </select>
+                        </div>
+                        <div style="margin-top:18px;">
+                            <button class="btn btn-amber" onclick="generateManagerView()">Generate Report</button>
+                        </div>
+                        <div style="margin-top:18px; margin-left:auto;">
+                            <button class="copy-btn" onclick="copyManagerReport()">📋 Copy for Performance
+                                Review</button>
+                        </div>
+                    </div>
+
+                    <div class="mv-generated" id="mv-output">
+                        <div class="empty">
+                            <div class="empty-icon">💼</div>
+                            <p>Set date range and generate your report</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- content -->
+    </div><!-- main -->
+
+    <!-- ═══ MODALS ══════════════════════════════════════ -->
+
+    <!-- Achievement Modal -->
+    <div class="overlay" id="ach-modal">
+        <div class="modal fade-up">
+            <div class="modal-title" id="ach-modal-title">Log Achievement</div>
+            <div class="form-group">
+                <label class="f-label">Title — What did you accomplish? *</label>
+                <input type="text" id="ach-title" placeholder="e.g. Reduced API response time by 40% through caching">
+            </div>
+            <div class="form-group">
+                <label class="f-label">What exactly did you do? (the full story)</label>
+                <textarea id="ach-desc" rows="3"
+                    placeholder="Describe the work, the approach, the decisions made..."></textarea>
+            </div>
+            <div class="form-group">
+                <label class="f-label">Impact / Outcome — So what? (the result)</label>
+                <textarea id="ach-impact" rows="2"
+                    placeholder="e.g. Reduced latency for 50k daily users, unblocked the team, saved 3 hours/week..."></textarea>
+            </div>
+            <div class="g2">
+                <div class="form-group">
+                    <label class="f-label">Impact Level</label>
+                    <select id="ach-level">
+                        <option value="critical">🔴 Critical — Major project win</option>
+                        <option value="high" selected>🟡 High — Significant contribution</option>
+                        <option value="medium">🟢 Medium — Solid progress</option>
+                        <option value="low">⚪ Low — Small but counted</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="f-label">Category</label>
+                    <select id="ach-cat">
+                        <option value="work">Work</option>
+                        <option value="dsa">DSA / Algo Practice</option>
+                        <option value="system-design">System Design</option>
+                        <option value="learning">Learning</option>
+                        <option value="side-project">Side Project</option>
+                        <option value="personal">Personal</option>
+                    </select>
+                </div>
+            </div>
+            <div class="g2">
+                <div class="form-group">
+                    <label class="f-label">Tags (comma-separated)</label>
+                    <input type="text" id="ach-tags" placeholder="backend, performance, microsoft-prep">
+                </div>
+                <div class="form-group">
+                    <label class="f-label">Date</label>
+                    <input type="date" id="ach-date">
+                </div>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+                <label class="f-label">Metrics (optional — add measurable numbers)</label>
+                <div id="ach-metrics-wrap"></div>
+                <button class="btn btn-ghost btn-xs" style="margin-top:6px;" onclick="addMetricField()">+ Add
+                    Metric</button>
+            </div>
+            <input type="hidden" id="ach-edit-id">
+            <div class="modal-foot">
+                <button class="btn btn-ghost" onclick="closeOverlay('ach-modal')">Cancel</button>
+                <button class="btn btn-amber" onclick="saveAchievement()">Save Achievement</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Task Modal -->
+    <div class="overlay" id="task-modal">
+        <div class="modal fade-up">
+            <div class="modal-title" id="task-modal-title">Add Task</div>
+            <div class="form-group">
+                <label class="f-label">Task *</label>
+                <input type="text" id="tm-title" placeholder="What needs to happen?">
+            </div>
+            <div class="form-group">
+                <label class="f-label">Notes</label>
+                <textarea id="tm-notes" rows="2" placeholder="Context, links, sub-steps..."></textarea>
+            </div>
+            <div class="g2">
+                <div class="form-group">
+                    <label class="f-label">Priority</label>
+                    <select id="tm-priority">
+                        <option value="P1">🔴 P1 — Critical</option>
+                        <option value="P2" selected>🟡 P2 — High</option>
+                        <option value="P3">🟣 P3 — Normal</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="f-label">Category</label>
+                    <input type="text" id="tm-cat" placeholder="e.g. dsa, work, prep">
+                </div>
+            </div>
+            <input type="hidden" id="tm-bucket">
+            <input type="hidden" id="tm-edit-id">
+            <div class="modal-foot">
+                <button class="btn btn-ghost" onclick="closeOverlay('task-modal')">Cancel</button>
+                <button class="btn btn-amber" onclick="saveTask()">Save Task</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Habit Modal -->
+    <div class="overlay" id="habit-modal">
+        <div class="modal fade-up">
+            <div class="modal-title">Add Habit</div>
+            <div class="form-group">
+                <label class="f-label">Habit Name *</label>
+                <input type="text" id="hm-name" placeholder="e.g. Badminton, DSA practice, No phone first hour">
+            </div>
+            <div class="form-group">
+                <label class="f-label">Emoji Icon</label>
+                <input type="text" id="hm-icon" maxlength="4" placeholder="🏸">
+            </div>
+            <div class="modal-foot">
+                <button class="btn btn-ghost" onclick="closeOverlay('habit-modal')">Cancel</button>
+                <button class="btn btn-amber" onclick="saveHabit()">Add Habit</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script src="/static/js/script.js"></script>
+</body>
+
+</html>
