@@ -13,11 +13,23 @@
         let blFilter = 'all';
         let achFilter = 'all';
 
-        function save() { localStorage.setItem('apex_v2', JSON.stringify(S)); }
+        function save() { 
+            fetch('/api/data', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(S)
+            }).catch(e => console.error('Save failed:', e));
+        }
 
-        function load() {
-            const raw = localStorage.getItem('apex_v2');
-            if (raw) { try { S = JSON.parse(raw); } catch (e) { } }
+        async function load() {
+            try {
+                const res = await fetch('/api/data');
+                if (res.ok) {
+                    S = await res.json();
+                }
+            } catch (e) {
+                console.error('Load failed:', e);
+            }
             if (!S.tasks) S.tasks = [];
             if (!S.achievements) S.achievements = [];
             if (!S.habits) S.habits = [];
@@ -955,11 +967,10 @@
         // ═══════════════════════════════════════════════════════
         // INIT
         // ═══════════════════════════════════════════════════════
-        function init() {
-            load();
+        (async function init() {
+            await load();
             updatePomoDisplay();
             go('home');
             // If already locked in today, go straight to today
             if (S.dailyLogs[TODAY]?.lockedIn) go('today');
-        }
-        init();
+        })();
