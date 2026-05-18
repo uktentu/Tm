@@ -1,0 +1,38 @@
+name: Deploy Life OS to GitHub Pages
+
+on:
+  push:
+    branches:
+      - feature/uday
+    paths:
+      - 'life-os/**'
+      - '.github/workflows/deploy-life-os.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages-life-os
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/uday
+
+      - name: Deploy life-os/ subfolder to gh-pages/life-os/
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./life-os
+          publish_branch: gh-pages
+          destination_dir: life-os
+          keep_files: true
+          commit_message: "Deploy life-os from ${{ github.sha }}"
+          user_name: "github-actions[bot]"
+          user_email: "github-actions[bot]@users.noreply.github.com"
