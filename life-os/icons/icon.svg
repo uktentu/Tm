@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="120" fill="#090909"/>
+  <rect x="60" y="60" width="392" height="392" rx="80" fill="none" stroke="#c8ff38" stroke-width="4" opacity=".3"/>
+  <!-- Lightning bolt / upward arrow — the "beyond" symbol -->
+  <path d="M290 80 L170 290 L240 290 L220 430 L340 220 L270 220 Z" fill="#c8ff38" opacity=".95"/>
+  <!-- Subtle glow effect -->
+  <path d="M290 80 L170 290 L240 290 L220 430 L340 220 L270 220 Z" fill="none" stroke="#c8ff38" stroke-width="2" opacity=".4"/>
+</svg>

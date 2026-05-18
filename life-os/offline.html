@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Offline — Life OS</title>
+<link rel="manifest" href="./manifest.json"/>
+<style>
+:root{--bg:#090909;--lime:#c8ff38;--tx:#eeede9;--t2:#88887e;--fd:"Syne",system-ui,sans-serif;}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;background:var(--bg);color:var(--tx);font-family:"DM Sans",system-ui,sans-serif;-webkit-font-smoothing:antialiased;}
+body{display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 70% 50% at 50% 50%,rgba(200,255,56,.05),transparent 70%);pointer-events:none;}
+.wrap{position:relative;z-index:1;max-width:480px;}
+.icon{font-size:64px;margin-bottom:24px;display:block;opacity:.6;}
+h1{font-family:var(--fd);font-size:clamp(28px,6vw,48px);font-weight:800;letter-spacing:-2px;line-height:1;margin-bottom:12px;}
+h1 span{color:var(--lime);}
+p{color:var(--t2);font-size:15px;line-height:1.65;margin-bottom:32px;max-width:360px;margin-inline:auto;}
+.btn{display:inline-flex;align-items:center;gap:10px;background:rgba(200,255,56,.1);border:1px solid rgba(200,255,56,.3);color:var(--lime);padding:14px 28px;border-radius:99px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;transition:all .2s;text-decoration:none;letter-spacing:.5px;}
+.btn:hover{background:rgba(200,255,56,.2);}
+.status{margin-top:24px;font-size:12px;color:var(--t2);letter-spacing:1px;text-transform:uppercase;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <span class="icon">📡</span>
+  <h1>You're <span>Offline</span></h1>
+  <p>No connection detected. Your data is safe — the app will sync automatically when you reconnect.</p>
+  <button class="btn" onclick="window.location.reload()">↺ Try Again</button>
+  <div class="status" id="st">Checking connection…</div>
+</div>
+<script>
+function check(){
+  fetch('./manifest.json',{cache:'no-store'})
+    .then(()=>{ document.getElementById('st').textContent='Connection restored — reloading…'; setTimeout(()=>window.location.href='./',800); })
+    .catch(()=>{ document.getElementById('st').textContent='Still offline. Hang tight.'; setTimeout(check,5000); });
+}
+check();
+</script>
+</body>
+</html>
