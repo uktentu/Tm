@@ -1503,10 +1503,10 @@ function init(){
     setTimeout(()=>syncFromGist(true),2000);
   }
 
-  // ── Auto-sync on visibility/focus ──
+  // ── Auto-sync on visibility/focus: pull first, then push local changes ──
   document.addEventListener('visibilitychange',()=>{
     if(document.visibilityState==='visible'&&ls('gh_pat')){
-      syncToGist(true);
+      syncFromGist(true).then(()=>syncToGist(true));
     }
   });
 
