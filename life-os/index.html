@@ -66,7 +66,8 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
 .hright{display:flex;align-items:center;gap:clamp(10px,2vw,24px);}
 .slbl{font-size:10px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;color:var(--t2);white-space:nowrap;min-width:70px;text-align:right;}
 .ndots{display:flex;gap:6px;align-items:center;}
-.ndot{width:8px;height:8px;border-radius:4px;background:var(--t3);border:none;cursor:inherit;transition:all .3s var(--eb);padding:0;min-width:8px;}
+.ndot{width:8px;height:8px;border-radius:4px;background:var(--t3);border:none;cursor:inherit;transition:all .3s var(--eb);padding:0;min-width:8px;position:relative;}
+.ndot::after{content:'';position:absolute;inset:-12px;}
 .ndot.active{width:28px;background:var(--lime);box-shadow:0 0 14px rgba(200,255,56,.5);}
 .ndot:hover:not(.active){background:var(--t2);}
 
@@ -79,17 +80,19 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
 .sync-chip.err .sc-dot{background:var(--red);}
 .sync-chip.syncing .sc-dot{background:var(--gold);animation:pulse 1s infinite;}
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
-.h-btn{width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:var(--s1);border:1px solid var(--bd);border-radius:8px;color:var(--t2);cursor:inherit;font-size:14px;transition:all .2s;font-family:inherit;}
+.h-btn{width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:var(--s1);border:1px solid var(--bd);border-radius:8px;color:var(--t2);cursor:inherit;font-size:16px;transition:all .2s;font-family:inherit;flex-shrink:0;-webkit-tap-highlight-color:transparent;}
+@media(max-width:768px){.h-btn{width:40px;height:40px;font-size:18px;}}
 .h-btn:hover{border-color:var(--bd2);color:var(--tx);}
 .h-avatar{width:28px;height:28px;border-radius:50%;border:1px solid var(--bd2);object-fit:cover;background:var(--s2);cursor:inherit;}
 
-/* ── INSTALL BAR ── */
-.install-bar{position:fixed;top:var(--hdr);left:0;right:0;background:linear-gradient(135deg,rgba(200,255,56,.12),rgba(200,255,56,.04));border-bottom:1px solid rgba(200,255,56,.2);padding:10px 16px;display:flex;align-items:center;justify-content:center;gap:14px;z-index:150;flex-wrap:wrap;transform:translateY(-100%);transition:transform .4s var(--eo);}
-.install-bar.show{transform:translateY(0);}
+/* ── INSTALL BAR (in-flow above header) ── */
+.install-bar{flex-shrink:0;max-height:0;overflow:hidden;background:linear-gradient(135deg,rgba(200,255,56,.12),rgba(200,255,56,.04));border-bottom:1px solid rgba(200,255,56,.2);display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;padding:0 16px;transition:max-height .4s var(--eo),padding .4s var(--eo);position:relative;z-index:201;}
+.install-bar.show{max-height:120px;padding:10px 16px;}
 .install-bar .ib-txt{font-size:12px;color:var(--tx);font-weight:500;}
 .install-bar .ib-txt strong{color:var(--lime);font-weight:700;}
 .install-bar button{background:var(--lime);color:#090909;border:none;padding:6px 14px;border-radius:6px;font-size:11px;font-weight:800;cursor:inherit;letter-spacing:.5px;font-family:inherit;}
 .install-bar .ib-x{background:transparent;color:var(--t2);padding:4px 8px;font-weight:500;}
+@media(max-width:480px){.install-bar{font-size:11px;gap:8px;}.install-bar .ib-txt{flex-basis:100%;text-align:center;}}
 
 /* ── AUTH MODAL ── */
 .auth-modal{position:fixed;inset:0;background:rgba(4,4,7,.96);backdrop-filter:blur(20px);z-index:9990;display:none;align-items:center;justify-content:center;padding:24px;}
@@ -119,8 +122,8 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
 .auth-msg.ok{color:var(--lime);}
 
 /* ── SETTINGS PANEL ── */
-.settings-panel{position:fixed;top:0;right:0;bottom:0;width:min(420px,100vw);background:rgba(9,9,9,.98);backdrop-filter:blur(20px);border-left:1px solid var(--bd2);z-index:9000;transform:translateX(100%);transition:transform .35s var(--eo);overflow-y:auto;padding:24px;}
-.settings-panel.show{transform:translateX(0);}
+.settings-panel{position:fixed;top:0;right:0;bottom:0;width:min(420px,100vw);background:rgba(9,9,9,.98);backdrop-filter:blur(20px);border-left:1px solid var(--bd2);z-index:9000;transform:translateX(100%);transition:transform .35s var(--eo);overflow-y:auto;padding:24px;pointer-events:none;visibility:hidden;}
+.settings-panel.show{transform:translateX(0);pointer-events:auto;visibility:visible;}
 .sp-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid var(--bd);}
 .sp-head h3{font-family:var(--fd);font-size:22px;font-weight:800;letter-spacing:-1px;}
 .sp-close{background:none;border:1px solid var(--bd);color:var(--t2);width:32px;height:32px;border-radius:8px;font-size:18px;cursor:inherit;transition:all .2s;font-family:inherit;}
@@ -566,13 +569,6 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
 <div class="cdot" id="cdot"></div>
 <div class="cring" id="cring"></div>
 
-<!-- ══ INSTALL BAR ══ -->
-<div class="install-bar" id="installBar">
-  <div class="ib-txt">📱 <strong>Install Life OS</strong> for offline access and home-screen launch</div>
-  <button id="installBtn">Install</button>
-  <button class="ib-x" id="installDismiss">Not now</button>
-</div>
-
 <!-- ══ AUTH MODAL ══ -->
 <div class="auth-modal" id="authModal">
   <div class="auth-card">
@@ -665,6 +661,12 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
 </div>
 
 <div class="app">
+  <!-- ══ INSTALL BAR (above header, in-flow) ══ -->
+  <div class="install-bar" id="installBar">
+    <div class="ib-txt">📱 <strong>Install Life OS</strong> for offline access and home-screen launch</div>
+    <button id="installBtn">Install</button>
+    <button class="ib-x" id="installDismiss">Not now</button>
+  </div>
   <header>
     <div class="brand">BEYOND STANDARD</div>
     <div class="hright">
