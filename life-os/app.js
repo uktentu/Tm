@@ -289,30 +289,73 @@ if('serviceWorker' in navigator){
   });
 }
 
+function isStandalone(){
+  return window.matchMedia('(display-mode: standalone)').matches
+    || window.matchMedia('(display-mode: minimal-ui)').matches
+    || window.navigator.standalone === true;
+}
+
+function isIOS(){
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+}
+
+function canShowInstall(){
+  if(isStandalone())return false;
+  if(ls('pwa_installed',false))return false;
+  if(ls('pwa_dismissed',false))return false;
+  return !!deferredPrompt;
+}
+
+function refreshInstallUI(){
+  const bar=document.getElementById('installBar');
+  const sBtn=document.getElementById('installAppBtn');
+  if(canShowInstall()){
+    if(bar)bar.classList.add('show');
+    if(sBtn)sBtn.style.display='block';
+  }else{
+    if(bar)bar.classList.remove('show');
+    if(sBtn)sBtn.style.display='none';
+  }
+}
+
 window.addEventListener('beforeinstallprompt',e=>{
   e.preventDefault();
   deferredPrompt=e;
-  if(!ls('pwa_dismissed',false)){
-    document.getElementById('installBar').classList.add('show');
-  }
-  const sBtn=document.getElementById('installAppBtn');
-  if(sBtn)sBtn.style.display='block';
+  refreshInstallUI();
 });
 
 window.addEventListener('appinstalled',()=>{
-  document.getElementById('installBar').classList.remove('show');
-  const sBtn=document.getElementById('installAppBtn');
-  if(sBtn)sBtn.style.display='none';
+  lsSet('pwa_installed',true);
+  deferredPrompt=null;
+  refreshInstallUI();
   toast('✅ Life OS installed!');
 });
 
+// Detect display-mode changes (some browsers fire this when entering installed PWA)
+try{
+  const mm=window.matchMedia('(display-mode: standalone)');
+  (mm.addEventListener||mm.addListener).call(mm,'change',()=>{
+    if(isStandalone()){lsSet('pwa_installed',true);refreshInstallUI();}
+  });
+}catch{}
+
 async function triggerInstall(){
-  if(!deferredPrompt){toast('Install not available right now.');return;}
-  deferredPrompt.prompt();
-  const r=await deferredPrompt.userChoice;
-  if(r.outcome==='accepted')toast('Installing…');
-  deferredPrompt=null;
-  document.getElementById('installBar').classList.remove('show');
+  if(deferredPrompt){
+    try{
+      deferredPrompt.prompt();
+      const r=await deferredPrompt.userChoice;
+      if(r.outcome==='accepted')toast('Installing…');
+      deferredPrompt=null;
+      refreshInstallUI();
+    }catch(e){
+      toast('Install prompt failed.');
+    }
+    return;
+  }
+  if(isStandalone()){toast('Already installed — you are running the PWA.');return;}
+  if(isIOS()){toast('iOS: tap Share → "Add to Home Screen"');return;}
+  if(/Firefox/i.test(navigator.userAgent)){toast('Firefox: open menu → "Install" or "Add to Home Screen"');return;}
+  toast('Install option not offered yet — open this page in Chrome/Edge or use the browser menu.');
 }
 
 /* ════════════════════════════════════════════════
@@ -1246,6 +1289,42 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){document.getElementById('settingsPanel').classList.remove('show');}
 });
 
+/* ── TOUCH / SWIPE NAVIGATION ── */
+(function(){
+  let tStartX=0,tStartY=0,tStartT=0,tracking=false;
+  const SWIPE_MIN=60, SWIPE_MAX_Y=80, SWIPE_MAX_T=500;
+  const secs=document.querySelector('.secs');
+  if(!secs)return;
+  function isInScrollable(el){
+    while(el && el!==secs){
+      if(el.classList && (el.classList.contains('tlb-wrap')||el.classList.contains('dtabs')||el.classList.contains('tlb-wrap'))) return true;
+      const cs=window.getComputedStyle(el);
+      if(cs.overflowX==='auto'||cs.overflowX==='scroll'){
+        if(el.scrollWidth>el.clientWidth)return true;
+      }
+      el=el.parentElement;
+    }
+    return false;
+  }
+  secs.addEventListener('touchstart',e=>{
+    if(e.touches.length!==1)return;
+    if(e.target.closest('input,select,textarea,button'))return;
+    if(isInScrollable(e.target))return;
+    tStartX=e.touches[0].clientX;tStartY=e.touches[0].clientY;tStartT=Date.now();tracking=true;
+  },{passive:true});
+  secs.addEventListener('touchend',e=>{
+    if(!tracking)return;tracking=false;
+    const t=e.changedTouches[0];
+    const dx=t.clientX-tStartX, dy=t.clientY-tStartY, dt=Date.now()-tStartT;
+    if(dt>SWIPE_MAX_T)return;
+    if(Math.abs(dy)>SWIPE_MAX_Y)return;
+    if(Math.abs(dx)<SWIPE_MIN)return;
+    if(dx<0)goTo(Math.min(curSec+1,SECS.length-1));
+    else goTo(Math.max(curSec-1,0));
+  },{passive:true});
+  secs.addEventListener('touchcancel',()=>{tracking=false;},{passive:true});
+})();
+
 /* ════════════════════════════════════════════════
    GLOBAL RE-RENDER
    ════════════════════════════════════════════════ */
@@ -1324,6 +1403,9 @@ function init(){
     lsSet('pwa_dismissed',true);
     document.getElementById('installBar').classList.remove('show');
   });
+  // If running as installed PWA, mark it and ensure bar stays hidden
+  if(isStandalone())lsSet('pwa_installed',true);
+  refreshInstallUI();
 
   // ── Auth modal ──
   document.getElementById('patSubmit').addEventListener('click',handleConnectPAT);
