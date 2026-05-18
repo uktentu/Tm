@@ -462,7 +462,7 @@ async function syncFromGist(silent=false){
 function scheduleAutoSync(){
   if(!ls('gh_pat'))return;
   clearTimeout(autoSyncTimer);
-  autoSyncTimer=setTimeout(()=>syncToGist(true),30000);
+  autoSyncTimer=setTimeout(()=>syncToGist(true),3000);
 }
 
 function setSyncStatus(state){
@@ -1500,7 +1500,7 @@ function init(){
   }else if(ls('gh_pat')){
     updateUserUI();
     // Background sync from cloud on load
-    setTimeout(()=>syncFromGist(true),2000);
+    setTimeout(()=>syncFromGist(true),500);
   }
 
   // ── Auto-sync on visibility/focus: pull first, then push local changes ──
