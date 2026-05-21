@@ -56,8 +56,9 @@ function getSecs(){
   const ids=getVisibleSectionIds();
   return ids.map(id=>SECS_ALL.find(s=>s.id===id)).filter(Boolean);
 }
-// SECS is dynamic — refresh on every access via getter
-let SECS=getSecs();
+// SECS is dynamic — initialized to all sections; refreshed after ls() exists (during init).
+// Cannot call getSecs() at module load because ls is declared with `const` further down (TDZ).
+let SECS=SECS_ALL.slice();
 function refreshSecs(){SECS=getSecs();}
 
 /* ── THEMES ── */
@@ -68,16 +69,18 @@ const THEMES={
   amber:  {n:'Amber',  hex:'#ffb547', r:255,g:181,b:71},
   violet: {n:'Violet', hex:'#aa96ff', r:170,g:150,b:255},
 };
+let CAT_CURRENT_COLOR='#c8ff38';
 function applyTheme(name){
   const t=THEMES[name]||THEMES.lime;
   const root=document.documentElement;
   root.style.setProperty('--lime',t.hex);
   root.style.setProperty('--lg',  `rgba(${t.r},${t.g},${t.b},.13)`);
   root.style.setProperty('--lgb', `rgba(${t.r},${t.g},${t.b},.22)`);
-  // pixel cat body color follows theme
-  document.querySelectorAll('.pcat rect[fill="#c8ff38"]').forEach(r=>r.setAttribute('fill',t.hex));
-  // pre-existing rgba inline overrides for shadows/glows — update root vars
-  lsSet('theme',name);
+  // Re-color cat using whatever color it currently has (not just original lime)
+  document.querySelectorAll(`.pcat rect[fill="${CAT_CURRENT_COLOR}"]`).forEach(r=>r.setAttribute('fill',t.hex));
+  CAT_CURRENT_COLOR=t.hex;
+  // Guard: lsSet may not exist yet on very early calls
+  if(typeof lsSet==='function')lsSet('theme',name);
 }
 
 /* ── PERSONAS ── */
@@ -386,7 +389,13 @@ function fbAttachListener(){
 async function handleGoogleSignIn(){
   const msg=document.getElementById('authMsg');
   if(!fbAuth){
-    if(!localStorage.getItem('fb_config')){msg.textContent='Paste your Firebase config first.';msg.className='auth-msg err';document.getElementById('fbConfigArea').style.display='block';return;}
+    if(!localStorage.getItem('fb_config')){
+      msg.textContent='Paste your Firebase config first.';msg.className='auth-msg err';
+      document.getElementById('authCard')?.classList.add('config-open');
+      document.getElementById('fbConfigBtn')?.classList.add('open');
+      const lbl=document.getElementById('fbConfigBtnLabel');if(lbl)lbl.textContent='Close config';
+      return;
+    }
     return;
   }
   msg.textContent='Opening Google sign-in…';msg.className='auth-msg';
@@ -433,8 +442,9 @@ function handleFbConfig(configStr){
     if(!config.apiKey||!config.databaseURL)throw new Error('Missing apiKey or databaseURL');
     localStorage.setItem('fb_config',JSON.stringify(config));
     initFirebase(config);
-    document.getElementById('fbConfigArea').style.display='none';
-    document.getElementById('fbSignInArea').style.display='block';
+    document.getElementById('authCard')?.classList.remove('config-open');
+    document.getElementById('fbConfigBtn')?.classList.remove('open');
+    const lbl=document.getElementById('fbConfigBtnLabel');if(lbl)lbl.textContent='Paste Firebase config';
     msg.textContent='✓ Firebase connected. Sign in below.';
     msg.className='auth-msg ok';
   }catch(e){
@@ -675,12 +685,14 @@ function buildNav(){
   if(curSec>=SECS.length){curSec=0;}
 }
 function goTo(idx){
-  if(transitioning||idx===curSec||!SECS[idx])return;
+  if(transitioning||idx===curSec||!SECS[idx]||!SECS[curSec])return;
   transitioning=true;
-  document.getElementById('sec-'+SECS[curSec].id).classList.add('exit');
+  const fromEl=document.getElementById('sec-'+SECS[curSec].id);
   const to=document.getElementById('sec-'+SECS[idx].id);
+  if(!to||!fromEl){transitioning=false;return;}
+  fromEl.classList.add('exit');
   setTimeout(()=>{
-    document.getElementById('sec-'+SECS[curSec].id).classList.remove('active','exit');
+    fromEl.classList.remove('active','exit');
     to.classList.add('active');
     curSec=idx;transitioning=false;
     updateNav();
