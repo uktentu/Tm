@@ -733,6 +733,59 @@ function renderStepsInputs(){
   if(tE)tE.value=s.type||'';
 }
 
+/* ── PHOTO PROGRESS ── */
+function compressPhoto(file,maxW=600,quality=0.7){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const img=new Image();
+      img.onload=()=>{
+        const scale=Math.min(1,maxW/img.width);
+        const w=Math.round(img.width*scale),h=Math.round(img.height*scale);
+        const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
+        canvas.getContext('2d').drawImage(img,0,0,w,h);
+        resolve(canvas.toDataURL('image/jpeg',quality));
+      };
+      img.onerror=reject;img.src=e.target.result;
+    };
+    reader.onerror=reject;reader.readAsDataURL(file);
+  });
+}
+function listPhotos(){
+  const out=[];
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i);
+    if(k&&k.startsWith('photo:')){
+      const parts=k.split(':');
+      out.push({key:k,date:parts[1],type:parts[2]});
+    }
+  }
+  return out.sort((a,b)=>b.date.localeCompare(a.date)||a.type.localeCompare(b.type));
+}
+function renderPhotoGrid(){
+  const el=document.getElementById('photoGrid');if(!el)return;
+  const photos=listPhotos();
+  if(!photos.length){el.innerHTML='<div style="grid-column:1/-1;color:var(--t2);font-size:13px;">No photos yet. Add one to start tracking visual progress.</div>';return;}
+  el.innerHTML=photos.map(p=>{
+    const data=ls(p.key,'');
+    return`<div class="photo-item" data-key="${p.key}">
+      <img src="${data}" alt="${p.type} ${p.date}" loading="lazy"/>
+      <div class="photo-item-meta">${new Date(p.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})} · ${p.type}</div>
+    </div>`;
+  }).join('');
+  el.querySelectorAll('.photo-item').forEach(item=>{
+    item.addEventListener('click',()=>openPhotoModal(item.dataset.key));
+  });
+}
+let pendingPhotoKey=null;
+function openPhotoModal(key){
+  pendingPhotoKey=key;
+  const parts=key.split(':');
+  document.getElementById('photoModalImg').src=ls(key,'');
+  document.getElementById('photoModalMeta').textContent=new Date(parts[1]+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})+' · '+parts[2];
+  document.getElementById('photoModal').classList.add('show');
+}
+
 /* ── PROGRESSIVE OVERLOAD ── */
 function getProgressionSuggestion(exName,dayIdx,repRange){
   const sessions=[];
@@ -1257,7 +1310,7 @@ function renderProgress(){
   const jStreak=computeJournalStreak();
   const jsEl=document.getElementById('journalStreak');if(jsEl)jsEl.textContent=jStreak;
   renderRadar();renderBarChart(rates);renderWeightChart();renderPR();renderHeat();renderWeeklySummary(streak,rates,avg,allItems);
-  renderMeasurements();renderHabitStreaks();
+  renderMeasurements();renderHabitStreaks();renderPhotoGrid();
 }
 
 function renderRadar(){
@@ -2211,6 +2264,29 @@ function init(){
   document.getElementById('waterGoalBtn')?.addEventListener('click',()=>{
     const v=prompt('Daily water goal (ml):',getWaterGoal());
     if(v){const n=parseInt(v);if(n>=500&&n<=10000){lsSet('water_goal',n);renderWaterRing();toast('Goal set: '+n+' ml');}}
+  });
+
+  // ── Photo Progress ──
+  document.getElementById('photoAddBtn')?.addEventListener('click',()=>document.getElementById('photoInput').click());
+  document.getElementById('photoInput')?.addEventListener('change',async e=>{
+    const file=e.target.files[0];if(!file)return;
+    const type=document.getElementById('photoType').value;
+    toast('Compressing photo…');
+    try{
+      const data=await compressPhoto(file);
+      lsSet('photo:'+today+':'+type,data);
+      renderPhotoGrid();
+      toast('Photo saved!');
+    }catch(err){toast('Photo upload failed.');}
+    e.target.value='';
+  });
+  const closePhotoModal=()=>document.getElementById('photoModal').classList.remove('show');
+  document.getElementById('photoModalClose')?.addEventListener('click',closePhotoModal);
+  document.getElementById('photoModal')?.addEventListener('click',e=>{if(e.target===document.getElementById('photoModal'))closePhotoModal();});
+  document.getElementById('photoDeleteBtn')?.addEventListener('click',()=>{
+    if(!pendingPhotoKey)return;
+    if(!confirm('Delete this photo?'))return;
+    lsRm(pendingPhotoKey);closePhotoModal();renderPhotoGrid();toast('Photo deleted.');
   });
 
   // ── Body Measurements ──
