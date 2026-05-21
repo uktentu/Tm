@@ -602,7 +602,7 @@ function goTo(idx){
 function updateNav(){
   document.querySelectorAll('.ndot').forEach((d,i)=>d.classList.toggle('active',i===curSec));
   document.getElementById('slbl').textContent=SECS[curSec].lbl;
-  moveOrb();
+  if(typeof catReact==='function')catReact('sectionChange');
 }
 function updateClock(){
   const n=new Date();
@@ -1015,6 +1015,7 @@ function renderToday(){
           try{navigator.vibrate&&navigator.vibrate(15);}catch{}
           const xp=getHabitMeta(el.dataset.id).xp;
           toast(['Stack the win.','That is a Toji move.','Discipline = freedom.','One more brick laid.','Future you thanks you.'][Math.floor(Math.random()*5)]+(xp>1?` +${xp} XP`:''));
+          if(typeof catReact==='function')catReact('habitChecked');
         }
       });
     }
@@ -1169,6 +1170,7 @@ function saveSession(){
   renderSessionHistory();
   if(curSec===6)renderProgress();
   toast('Session saved!');
+  if(typeof catReact==='function')catReact('sessionLogged');
 }
 
 /* ════════════════════════════════════════════════
@@ -1835,20 +1837,224 @@ function bindCursor(){
   });
 }
 
-const MSGS={today:['Stack wins. Build momentum.','Start with water.','Check one thing.'],schedule:['Set these alarms tonight.'],training:['Mind-muscle. Every rep.','Track your lifts.'],nutrition:['Log each meal as you eat.','140 g protein today.'],style:["Plan tomorrow's fit now."],bookmarks:['Add your sheets here.'],progress:['Streaks compound daily.'],analytics:['Patterns over feelings.','The data does not lie.']};
-function moveOrb(){
-  const o=document.getElementById('gorb'),b=document.getElementById('obbl');
-  if(!o||!b)return;
-  const m=MSGS[SECS[curSec].id]||MSGS.today;
-  b.textContent=m[Math.floor(Math.random()*m.length)];
-  o.classList.add('sb');
-  clearTimeout(moveOrb._t);
-  moveOrb._t=setTimeout(()=>o.classList.remove('sb'),3500);
+/* ════════════════════════════════════════════════
+   SAGE CAT BRAIN
+   Multiple poses · contextual quotes · pointing behavior
+   ════════════════════════════════════════════════ */
+const CAT_QUOTES={
+  sage:[
+    "The mountain teaches patience. Today's reps build tomorrow's body.",
+    "Slow is smooth. Smooth is fast.",
+    "Sharpen the axe before you swing it. Plan, then act.",
+    "The fox knows many things. The hedgehog one big thing. Choose.",
+    "What you tolerate, you teach. Raise the standard.",
+    "Discipline is choosing between what you want now and what you want most.",
+    "The cave you fear holds the treasure you seek.",
+    "Rest is not the opposite of work — it is part of it.",
+    "Compound interest works on habits too. Show up.",
+    "The body achieves what the mind believes — and the schedule enforces.",
+  ],
+  motivational:[
+    "Future you is watching. Don't disappoint them.",
+    "One rep at a time. One meal at a time.",
+    "Show up bored. Show up tired. Just show up.",
+    "Today is the only day. Tomorrow is fiction.",
+    "Stack the win. Then stack another.",
+    "Hard work beats talent that doesn't work hard.",
+    "Champions are not made in gyms. They are made in choices.",
+    "The pain you feel today is the strength you feel tomorrow.",
+    "Train insane or remain the same.",
+    "Bricks. Just lay one more brick.",
+  ],
+  funny:[
+    "*meow* — hydrate, human.",
+    "I napped 14 hours. Be more like me.",
+    "I demand tribute. Check water.",
+    "9 lives. Still picking excuses. Pick discipline.",
+    "Skipped your workout? I would knock things off the table.",
+    "Carbs are not the enemy. Skipped workouts are.",
+    "You called yourself busy. I see Netflix in your browser history.",
+    "If you can scroll, you can plank.",
+    "Cats nap to recover. You scroll. Pick one.",
+    "*purr* good. Now eat protein.",
+  ],
+  contextual:{
+    today:["Start with water. Always water.","Check one thing. Build momentum.","One non-negotiable, no excuses."],
+    schedule:["Alarms set tonight save the morning.","The clock is your accountability.","Time-blocked = decision-made."],
+    training:["Mind-muscle. Every rep.","Last 2 reps build muscle.","Form > weight. Always.","Track it or it didn't happen."],
+    nutrition:["Protein first. Carbs second.","Slow chew. Full faster.","Hydrate before you eat.","Hit your target before snacks."],
+    style:["Plan tomorrow's fit tonight.","Confidence wears a quiet shirt.","Fit > brand. Always."],
+    bookmarks:["Out of sight = out of mind. Pin it.","Centralize. Don't scatter."],
+    progress:["Streaks compound. Don't break twice.","The data does not lie.","Receipts > feelings."],
+    analytics:["Pattern recognition is the real skill.","You optimize what you measure.","Trends > today."],
+  }
+};
+
+let catState={pose:'walk',busy:false,lastQuoteAt:0};
+
+function setCatPose(pose){
+  const cat=document.getElementById('pcat');
+  if(!cat)return;
+  catState.pose=pose;
+  cat.dataset.pose=pose;
+  cat.querySelectorAll('.pose').forEach(g=>g.classList.toggle('on',g.dataset.pose===pose));
+  const g=document.getElementById('gorb');
+  if(!g)return;
+  g.classList.remove('walking','celebrate','point-right');
+  if(pose==='walk')g.classList.add('walking');
+  else if(pose==='point')g.classList.add('point-right');
 }
-setInterval(moveOrb,18000);
+
+function catSay(text,tag='Sage',duration=4500){
+  const g=document.getElementById('gorb');
+  const t=document.getElementById('obblText');
+  const tg=document.getElementById('obblTag');
+  if(!g||!t)return;
+  if(tg)tg.textContent=tag;
+  t.textContent=text;
+  g.classList.add('sb');
+  clearTimeout(catSay._t);
+  catSay._t=setTimeout(()=>g.classList.remove('sb'),duration);
+  catState.lastQuoteAt=Date.now();
+}
+
+function pickQuote(){
+  const pools=['sage','motivational','funny'];
+  const pool=pools[Math.floor(Math.random()*pools.length)];
+  const arr=CAT_QUOTES[pool];
+  return {text:arr[Math.floor(Math.random()*arr.length)],tag:pool.charAt(0).toUpperCase()+pool.slice(1)};
+}
+
+function catContextualHint(){
+  const id=SECS[curSec]?.id||'today';
+  const arr=CAT_QUOTES.contextual[id]||CAT_QUOTES.contextual.today;
+  return {text:arr[Math.floor(Math.random()*arr.length)],tag:id.charAt(0).toUpperCase()+id.slice(1)};
+}
+
+// Idle cycle: every 18-35s a random action
+function catIdleTick(){
+  if(catState.busy)return;
+  const r=Math.random();
+  if(r<0.45){
+    // Talk while walking
+    const q=Math.random()<0.4?catContextualHint():pickQuote();
+    catSay(q.text,q.tag);
+  }else if(r<0.65){
+    // Sit + sage quote
+    catState.busy=true;setCatPose('sit');
+    const q=pickQuote();catSay(q.text,q.tag,5000);
+    setTimeout(()=>{setCatPose('walk');catState.busy=false;},5200);
+  }else if(r<0.80){
+    // Stretch + motivational
+    catState.busy=true;setCatPose('stretch');
+    catSay(CAT_QUOTES.motivational[Math.floor(Math.random()*CAT_QUOTES.motivational.length)],'Stretch',3500);
+    setTimeout(()=>{setCatPose('walk');catState.busy=false;},3700);
+  }else if(r<0.92){
+    // Quick sleep
+    catState.busy=true;setCatPose('sleep');
+    catSay('zZz... wake me when you log water.','Nap',3000);
+    setTimeout(()=>{setCatPose('walk');catState.busy=false;},3200);
+  }else{
+    // Point at something on screen
+    catPointAtRandom();
+  }
+}
+
+// Pause walking and point at a notable element in the current section
+function catPointAtRandom(){
+  const targets={
+    today:['#waterRing','#dpBar','#xpHud','#checks .ch:first-child','#journalWin'],
+    schedule:['#bgrid .blk:first-child','#addBlockBtn'],
+    training:['#logSessionBtn','#sessionHistory','.train-hero'],
+    nutrition:['.mrings .mrc:first-child','#nutritionStats .ns-card:first-child','#mealTemplates'],
+    style:['.outfit-plan','.sg .sc:first-child'],
+    bookmarks:['#bmSearch','#bmgrid'],
+    progress:['.stk-hero','#measGrid','#habitStreaksGrid','#photoGrid'],
+    analytics:['#anRange','#anEnergySpark','.an-stat:first-child']
+  };
+  const id=SECS[curSec]?.id||'today';
+  const candidates=(targets[id]||targets.today).map(s=>document.querySelector(s)).filter(Boolean);
+  if(!candidates.length)return;
+  const target=candidates[Math.floor(Math.random()*candidates.length)];
+  const rect=target.getBoundingClientRect();
+  if(rect.width===0||rect.height===0)return;
+  catState.busy=true;
+  const g=document.getElementById('gorb');
+  g.classList.add('fixed');
+  g.classList.remove('walking','reverse');
+  // Position cat directly below the target
+  const targetCenterX=rect.left+rect.width/2;
+  const catX=Math.max(8,Math.min(window.innerWidth-72,targetCenterX-26));
+  const catBottom=Math.max(20,window.innerHeight-rect.top+8);
+  g.style.left=catX+'px';
+  g.style.bottom=catBottom+'px';
+  setCatPose('point');
+  target.classList.add('cat-highlight');
+  const hints=[
+    'Look here. This is the metric.',
+    'Eyes on this. The truth lives here.',
+    'This. This is what matters today.',
+    'Notice the pattern. Then act.',
+    'Tend this card. Daily.',
+    'Small numbers. Big compounding.',
+  ];
+  catSay(hints[Math.floor(Math.random()*hints.length)],'Pointing',5000);
+  setTimeout(()=>{
+    target.classList.remove('cat-highlight');
+    g.classList.remove('fixed');
+    g.style.left='';g.style.bottom='';
+    setCatPose('walk');
+    catState.busy=false;
+  },5500);
+}
+
+// Public reactions
+function catReact(event){
+  if(catState.busy)return;
+  const reactions={
+    habitChecked:[
+      {pose:'celebrate',msg:'Yes! Stack it.',tag:'Pump'},
+      {pose:'celebrate',msg:'Brick laid. Next.',tag:'Pump'},
+    ],
+    waterLogged:[
+      {pose:'stretch',msg:'*purrr* good hydration human.',tag:'Approval'},
+      {pose:'sit',msg:'Cells thank you.',tag:'Sage'},
+    ],
+    sessionLogged:[
+      {pose:'celebrate',msg:'A receipt for tomorrow.',tag:'Pump'},
+    ],
+    sectionChange:[
+      {pose:'walk',quoteFromContext:true},
+    ],
+  };
+  const pool=reactions[event];
+  if(!pool)return;
+  const r=pool[Math.floor(Math.random()*pool.length)];
+  if(r.quoteFromContext){
+    const q=catContextualHint();catSay(q.text,q.tag);return;
+  }
+  catState.busy=true;
+  const prev=catState.pose;
+  setCatPose(r.pose);
+  catSay(r.msg,r.tag||'Cat',3000);
+  setTimeout(()=>{setCatPose(prev==='point'?'walk':prev);catState.busy=false;},3100);
+}
+
+setInterval(catIdleTick,28000);
+// First quote shortly after page load
+setTimeout(()=>{const q=catContextualHint();catSay(q.text,q.tag);},6500);
+
 document.addEventListener('DOMContentLoaded',()=>{
   const g=document.getElementById('gorb');
-  if(g)g.addEventListener('click',()=>{g.classList.toggle('paused');moveOrb();});
+  if(!g)return;
+  setCatPose('walk');
+  g.addEventListener('click',()=>{
+    if(catState.busy)return;
+    catState.busy=true;
+    setCatPose('stretch');
+    const q=pickQuote();catSay(q.text,q.tag,4000);
+    setTimeout(()=>{setCatPose('walk');catState.busy=false;},2400);
+  });
 });
 
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),2400);}
@@ -1985,41 +2191,75 @@ function init(){
   if(isStandalone())lsSet('pwa_installed',true);
   refreshInstallUI();
 
-  // ── Auth modal (Firebase) ──
-  const fbAuthSubmit=document.getElementById('fbAuthSubmit');
-  const fbAuthMode=document.getElementById('fbAuthMode');
-  const fbAuthSkip=document.getElementById('fbAuthSkip');
-  const fbConfigBtn=document.getElementById('fbConfigBtn');
-  const fbSaveConfigBtn=document.getElementById('fbSaveConfigBtn');
-  let fbCreateMode=false;
-  if(fbAuthSubmit){
-    fbAuthSubmit.addEventListener('click',()=>{
-      const email=document.getElementById('fbEmailInp').value.trim();
-      const pass=document.getElementById('fbPassInp').value;
-      if(!email||!pass){document.getElementById('authMsg').textContent='Enter email and password.';document.getElementById('authMsg').className='auth-msg err';return;}
-      if(!localStorage.getItem('fb_config')){
-        document.getElementById('authMsg').textContent='Paste your Firebase config first.';
-        document.getElementById('authMsg').className='auth-msg err';
-        document.getElementById('fbConfigArea').style.display='block';
-        return;
-      }
-      handleFbSignIn(email,pass,fbCreateMode);
-    });
-  }
-  if(fbAuthMode){
-    fbAuthMode.addEventListener('click',()=>{
-      fbCreateMode=!fbCreateMode;
-      fbAuthSubmit.textContent=fbCreateMode?'Create Account':'Sign In';
-      fbAuthMode.textContent=fbCreateMode?'Already have an account? Sign in':'New here? Create account';
-    });
-  }
-  if(fbAuthSkip){
-    fbAuthSkip.addEventListener('click',()=>{
-      localStorage.setItem('pwa_dismissed_auth',JSON.stringify(true));
-      document.getElementById('authModal').classList.remove('show');
-    });
-  }
+  // ── Auth modal: dual-form (sign-in / sign-up) + horizontal config side ──
+  const setAuthMode=mode=>{
+    document.querySelectorAll('.auth-mode-tab').forEach(t=>t.classList.toggle('active',t.dataset.mode===mode));
+    document.getElementById('signInForm').classList.toggle('active',mode==='signin');
+    document.getElementById('signUpForm').classList.toggle('active',mode==='signup');
+    document.getElementById('googleBtnLabel').textContent=mode==='signup'?'Sign up with Google':'Continue with Google';
+    document.getElementById('authMsg').textContent='';
+  };
+  document.querySelectorAll('.auth-mode-tab').forEach(tab=>tab.addEventListener('click',()=>setAuthMode(tab.dataset.mode)));
+
+  document.getElementById('siSubmit')?.addEventListener('click',()=>{
+    const email=document.getElementById('siEmail').value.trim();
+    const pass=document.getElementById('siPass').value;
+    if(!email||!pass){document.getElementById('authMsg').textContent='Enter email and password.';document.getElementById('authMsg').className='auth-msg err';return;}
+    handleFbSignIn(email,pass,false);
+  });
+  document.getElementById('siForgot')?.addEventListener('click',async()=>{
+    const email=document.getElementById('siEmail').value.trim();
+    if(!email){document.getElementById('authMsg').textContent='Enter your email above first.';document.getElementById('authMsg').className='auth-msg err';return;}
+    if(!fbAuth){document.getElementById('authMsg').textContent='Firebase not initialized.';document.getElementById('authMsg').className='auth-msg err';return;}
+    try{await fbAuth.sendPasswordResetEmail(email);document.getElementById('authMsg').textContent='✓ Reset email sent to '+email;document.getElementById('authMsg').className='auth-msg ok';}
+    catch(e){document.getElementById('authMsg').textContent='✗ '+e.message;document.getElementById('authMsg').className='auth-msg err';}
+  });
+
+  document.getElementById('suSubmit')?.addEventListener('click',async()=>{
+    const name=document.getElementById('suName').value.trim();
+    const email=document.getElementById('suEmail').value.trim();
+    const pass=document.getElementById('suPass').value;
+    const pass2=document.getElementById('suPass2').value;
+    const msg=document.getElementById('authMsg');
+    if(!email||!pass){msg.textContent='Email and password required.';msg.className='auth-msg err';return;}
+    if(pass.length<6){msg.textContent='Password must be at least 6 characters.';msg.className='auth-msg err';return;}
+    if(pass!==pass2){msg.textContent='Passwords do not match.';msg.className='auth-msg err';return;}
+    msg.textContent='Creating account…';msg.className='auth-msg';
+    try{
+      const cred=await fbAuth.createUserWithEmailAndPassword(email,pass);
+      if(name&&cred.user)await cred.user.updateProfile({displayName:name});
+      setTimeout(()=>{document.getElementById('authModal').classList.remove('show');toast('Welcome to Life OS!');},600);
+    }catch(e){msg.textContent='✗ '+e.message;msg.className='auth-msg err';}
+  });
+
+  document.getElementById('fbAuthSkip')?.addEventListener('click',()=>{
+    localStorage.setItem('pwa_dismissed_auth',JSON.stringify(true));
+    document.getElementById('authModal').classList.remove('show');
+  });
   document.getElementById('fbGoogleBtn')?.addEventListener('click',handleGoogleSignIn);
+
+  // Config side-panel toggle (horizontal expansion)
+  const authCard=document.getElementById('authCard');
+  const cfgBtn=document.getElementById('fbConfigBtn');
+  const cfgBtnLabel=document.getElementById('fbConfigBtnLabel');
+  const toggleCfg=open=>{
+    const isOpen=open!==undefined?open:!authCard.classList.contains('config-open');
+    authCard.classList.toggle('config-open',isOpen);
+    cfgBtn.classList.toggle('open',isOpen);
+    cfgBtnLabel.textContent=isOpen?'Close config':'Paste Firebase config';
+    if(isOpen){
+      const stored=localStorage.getItem('fb_config');
+      const ta=document.getElementById('fbConfigTextarea');
+      if(stored&&!ta.value)ta.value=stored;
+      setTimeout(()=>ta.focus(),350);
+    }
+  };
+  cfgBtn?.addEventListener('click',()=>toggleCfg());
+  document.getElementById('fbConfigClose')?.addEventListener('click',()=>toggleCfg(false));
+  document.getElementById('fbSaveConfigBtn')?.addEventListener('click',()=>{
+    handleFbConfig(document.getElementById('fbConfigTextarea').value.trim());
+    setTimeout(()=>toggleCfg(false),700);
+  });
 
   // ── Habit edit modal ──
   const habitEditModal=document.getElementById('habitEditModal');
@@ -2057,18 +2297,6 @@ function init(){
       el.textContent=formatCooldown(rem);
     });
   },60000);
-  if(fbConfigBtn){
-    fbConfigBtn.addEventListener('click',()=>{
-      const area=document.getElementById('fbConfigArea');
-      area.style.display=area.style.display==='none'?'block':'none';
-    });
-  }
-  if(fbSaveConfigBtn){
-    fbSaveConfigBtn.addEventListener('click',()=>{
-      handleFbConfig(document.getElementById('fbConfigTextarea').value.trim());
-    });
-  }
-
   // ── Header buttons ──
   document.getElementById('syncChip').addEventListener('click',()=>{
     if(!fbUser){document.getElementById('authModal').classList.add('show');return;}
@@ -2382,6 +2610,7 @@ function init(){
       renderWaterRing();
       try{navigator.vibrate&&navigator.vibrate(10);}catch{}
       toast('+'+add+' ml — '+(cur+add)+' ml today');
+      if(typeof catReact==='function')catReact('waterLogged');
     });
   });
   document.getElementById('waterGoalBtn')?.addEventListener('click',()=>{
@@ -2476,7 +2705,7 @@ function init(){
 
   // ── Renders ──
   renderToday();renderSched();renderTraining();renderNutrition();renderOutfitPlanner();renderBm();
-  initTimer();setTimeout(bindCursor,300);setTimeout(moveOrb,2000);
+  initTimer();setTimeout(bindCursor,300);
 
   // ── Firebase init: stored config (custom) OR embedded default ──
   const storedFbConfig=localStorage.getItem('fb_config');

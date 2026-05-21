@@ -101,7 +101,40 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
 /* ── AUTH MODAL ── */
 .auth-modal{position:fixed;inset:0;background:rgba(4,4,7,.96);backdrop-filter:blur(20px);z-index:9990;display:none;align-items:center;justify-content:center;padding:calc(24px + var(--sa-top)) calc(24px + var(--sa-right)) calc(24px + var(--sa-bot)) calc(24px + var(--sa-left));}
 .auth-modal.show{display:flex;animation:fadeUp .4s var(--eo);}
-.auth-card{background:var(--s1);border:1px solid var(--bd2);border-radius:var(--rxl);padding:clamp(28px,4vw,44px);max-width:520px;width:100%;position:relative;}
+.auth-card{background:var(--s1);border:1px solid var(--bd2);border-radius:var(--rxl);max-width:420px;width:100%;position:relative;display:flex;overflow:hidden;transition:max-width .45s var(--eo);}
+.auth-card.config-open{max-width:840px;}
+.auth-main{padding:clamp(28px,4vw,40px);width:100%;min-width:0;flex-shrink:0;}
+.auth-card.config-open .auth-main{width:420px;}
+.auth-side{width:0;overflow:hidden;border-left:0 solid transparent;transition:width .45s var(--eo),padding .45s var(--eo),border-left-width .3s;padding:0;background:rgba(255,255,255,.015);flex-shrink:0;}
+.auth-card.config-open .auth-side{width:420px;border-left:1px solid var(--bd);padding:clamp(28px,4vw,40px);}
+.auth-side-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+.auth-side-close{background:transparent;border:none;color:var(--t2);font-size:22px;cursor:pointer;font-family:inherit;line-height:1;padding:0 4px;}
+.auth-side-close:hover{color:var(--lime);}
+.auth-mode-tabs{display:flex;background:var(--s2);border:1px solid var(--bd);border-radius:99px;padding:3px;margin-bottom:16px;gap:2px;}
+.auth-mode-tab{flex:1;background:transparent;border:none;color:var(--t2);font-family:inherit;font-size:12px;font-weight:700;padding:8px 14px;border-radius:99px;cursor:pointer;transition:all .25s;letter-spacing:.3px;}
+.auth-mode-tab.active{background:var(--lime);color:#090909;}
+.auth-mode-tab:not(.active):hover{color:var(--tx);}
+.auth-form{display:none;}
+.auth-form.active{display:block;animation:authFormIn .3s var(--eo);}
+@keyframes authFormIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+.auth-divider{display:flex;align-items:center;gap:10px;margin:14px 0;color:var(--t3);font-size:10px;letter-spacing:1.8px;text-transform:uppercase;font-weight:700;}
+.auth-divider>div{flex:1;height:1px;background:var(--bd);}
+.auth-actions-row{display:flex;gap:8px;align-items:center;margin-top:14px;justify-content:space-between;flex-wrap:wrap;}
+.auth-actions-row .auth-btn.ghost{flex:0 0 auto;padding:8px 14px;font-size:11px;}
+.auth-mode-link{background:none;border:none;color:var(--lime);font-size:12px;cursor:pointer;font-family:inherit;margin-top:8px;display:block;text-align:center;width:100%;padding:6px;}
+.auth-mode-link:hover{text-decoration:underline;}
+@media(max-width:480px){.auth-card{margin:0 8px;}.auth-main{padding:24px 22px;}.auth-card.config-open .auth-side{padding:24px 22px;}.auth-mode-tabs{margin-bottom:14px;}.auth-actions-row{flex-direction:column;align-items:stretch;}.auth-actions-row .auth-btn.ghost{flex:1;width:100%;}.auth-cfg-btn{width:100%;justify-content:center;}}
+.auth-btn.google{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;color:#222;border:none;margin-bottom:0;font-weight:700;}
+.auth-btn.google:hover{background:#f4f4f4;}
+.auth-cfg-btn{background:transparent;border:1px solid var(--bd);color:var(--t2);font-size:11px;font-weight:600;padding:8px 12px;border-radius:99px;cursor:pointer;font-family:inherit;transition:all .2s;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;}
+.auth-cfg-btn:hover{border-color:var(--lime);color:var(--lime);}
+.auth-cfg-btn.open{background:var(--lg);border-color:rgba(200,255,56,.32);color:var(--lime);}
+@media(max-width:840px){
+  .auth-card{flex-direction:column;}
+  .auth-card.config-open{max-width:420px;}
+  .auth-card.config-open .auth-side{width:100%;border-left:0;border-top:1px solid var(--bd);}
+  .auth-card.config-open .auth-main{width:100%;}
+}
 .auth-card::before{content:'';position:absolute;top:0;left:20%;right:20%;height:2px;background:linear-gradient(90deg,transparent,var(--lime),transparent);}
 .auth-eyebrow{font-size:10px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:var(--lime);margin-bottom:12px;}
 .auth-card h2{font-family:var(--fd);font-size:clamp(24px,4vw,32px);font-weight:800;letter-spacing:-1.5px;line-height:1.1;margin-bottom:8px;}
@@ -217,7 +250,7 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
 .ch-score{font-family:var(--fd);font-size:clamp(20px,3vw,26px);font-weight:800;color:var(--lime);}
 .checks{display:flex;flex-direction:column;gap:6px;flex:1;overflow-y:auto;max-height:clamp(200px,30vh,360px);padding-right:2px;}
 .checks::-webkit-scrollbar{width:3px;}.checks::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:99px;}
-.ch{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);cursor:inherit;transition:all .2s;position:relative;flex-shrink:0;}
+.ch{display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);cursor:inherit;transition:all .2s;position:relative;flex-shrink:0;min-width:0;}
 .ch::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--lime);border-radius:2px 0 0 2px;transform:scaleY(0);transition:transform .25s var(--eb);}
 .ch:hover{border-color:var(--bd2);transform:translateX(2px);}
 .ch.done{background:rgba(200,255,56,.04);border-color:rgba(200,255,56,.14);}
@@ -226,7 +259,8 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
 .ch input:checked{background:var(--lime);border-color:var(--lime);box-shadow:0 0 8px rgba(200,255,56,.35);}
 .ch input:checked::after{content:'';position:absolute;left:3px;top:.5px;width:5px;height:9px;border:solid #090909;border-width:0 2px 2px 0;transform:rotate(45deg);}
 .ch input:checked~.chl{color:var(--t3);text-decoration:line-through;}
-.chl{flex:1;font-size:12.5px;font-weight:500;transition:color .2s;}.chio{font-size:13px;}
+.chl{flex:1;font-size:12.5px;font-weight:500;transition:color .2s;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.chio{font-size:13px;flex-shrink:0;}
 .ch-del{background:none;border:none;color:var(--t3);cursor:inherit;padding:2px 5px;border-radius:4px;font-size:14px;line-height:1;transition:color .2s;flex-shrink:0;}
 .ch-del:hover{color:var(--red);}
 .add-check{display:flex;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--bd);}
@@ -557,17 +591,46 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
 .an-ex-btn:hover{border-color:var(--bd2);background:var(--s3);}
 .an-ex-btn .ico{font-size:14px;}
 
-/* ── PIXEL CAT (replaces guide orb) ── */
-.gorb{position:fixed;bottom:calc(24px + var(--sa-bot));left:80px;z-index:500;pointer-events:auto;cursor:pointer;}
-.pcat{position:relative;width:48px;height:36px;image-rendering:pixelated;image-rendering:-moz-crisp-edges;image-rendering:crisp-edges;animation:catBob .5s steps(2) infinite,catWalk 75s linear infinite;filter:drop-shadow(0 0 6px rgba(200,255,56,.35));}
+/* ── SAGE PIXEL CAT ── */
+.gorb{position:fixed;bottom:calc(20px + var(--sa-bot));left:0;z-index:500;pointer-events:auto;cursor:pointer;transition:left .8s var(--eo);}
+.gorb.fixed{transition:left .9s var(--eo),bottom .9s var(--eo);}
+.gorb.walking .pcat-stage{animation:catWalk 90s linear infinite;}
+.gorb.walking .pcat-flipper{animation:catFlip 90s linear infinite;}
+.gorb.walking .pcat{animation:catBob .42s steps(2) infinite;}
+.gorb.paused .pcat,.gorb.paused .pcat-stage,.gorb.paused .pcat-flipper{animation-play-state:paused;}
+.pcat-stage{position:relative;left:0;display:inline-flex;flex-direction:column;align-items:center;}
+.pcat-flipper{display:inline-block;}
+.pcat{position:relative;width:52px;height:40px;image-rendering:pixelated;image-rendering:-moz-crisp-edges;image-rendering:crisp-edges;filter:drop-shadow(0 0 6px rgba(200,255,56,.35));}
 .pcat svg{width:100%;height:100%;display:block;}
-@keyframes catBob{0%,100%{transform:translateY(0);}50%{transform:translateY(-1px);}}
-@keyframes catWalk{0%{left:0;}48%{left:calc(100vw - 120px);transform:scaleX(1);}50%{left:calc(100vw - 120px);transform:scaleX(-1);}98%{left:0;transform:scaleX(-1);}100%{left:0;transform:scaleX(1);}}
-.gorb.paused .pcat{animation-play-state:paused;}
-.obbl{position:absolute;bottom:30px;left:50%;transform:translateX(-50%);white-space:nowrap;background:#111;border:1px solid rgba(200,255,56,.25);color:var(--lime);font-size:11px;font-weight:600;padding:6px 12px;border-radius:18px;opacity:0;transition:all .35s var(--eb);letter-spacing:.2px;pointer-events:none;}
-.obbl::after{content:'';position:absolute;bottom:-5px;left:50%;transform:translateX(-50%) rotate(45deg);width:8px;height:8px;background:#111;border-right:1px solid rgba(200,255,56,.25);border-bottom:1px solid rgba(200,255,56,.25);}
-.gorb.sb .obbl,.gorb:hover .obbl{opacity:1;transform:translateX(-50%) translateY(-3px);}
-@media(hover:hover){.gorb:hover .pcat{animation-play-state:paused;filter:drop-shadow(0 0 10px rgba(200,255,56,.6));}}
+.pcat .pose{display:none;}
+.pcat .pose.on{display:inline;}
+@keyframes catBob{0%,100%{transform:translateY(0);}50%{transform:translateY(-1.5px);}}
+@keyframes catWalk{
+  0%{left:8px;}
+  50%{left:calc(100vw - 200px);}
+  100%{left:8px;}
+}
+@keyframes catFlip{
+  0%,49.9%{transform:scaleX(1);}
+  50%,99.9%{transform:scaleX(-1);}
+  100%{transform:scaleX(1);}
+}
+.gorb.celebrate .pcat-flipper{animation:catJump .55s var(--eb) infinite;}
+@keyframes catJump{0%,100%{transform:translateY(0) scaleX(1);}40%{transform:translateY(-12px) scaleX(1) rotate(-4deg);}55%{transform:translateY(-14px) scaleX(1) rotate(4deg);}}
+.gorb.point-right .pcat-flipper{animation:catPoint 1.6s ease-in-out infinite;}
+@keyframes catPoint{0%,100%{transform:translateY(0);}50%{transform:translateY(-3px);}}
+/* Speech bubble */
+.obbl{position:absolute;bottom:46px;left:50%;transform:translateX(-50%) translateY(8px);max-width:240px;width:max-content;background:linear-gradient(135deg,#0e0e0e,#181818);border:1px solid rgba(200,255,56,.35);color:var(--lime);font-size:11.5px;font-weight:600;padding:8px 14px;border-radius:16px;opacity:0;transition:all .4s var(--eb);letter-spacing:.1px;pointer-events:none;white-space:normal;text-align:center;line-height:1.4;box-shadow:0 8px 20px -4px rgba(0,0,0,.6),0 0 0 4px rgba(200,255,56,.05);font-family:var(--font);z-index:9971;}
+.obbl::after{content:'';position:absolute;bottom:-5px;left:50%;transform:translateX(-50%) rotate(45deg);width:8px;height:8px;background:#181818;border-right:1px solid rgba(200,255,56,.35);border-bottom:1px solid rgba(200,255,56,.35);}
+.obbl .obbl-tag{display:block;font-size:8px;font-weight:800;letter-spacing:1.8px;text-transform:uppercase;color:var(--lime);opacity:.6;margin-bottom:4px;}
+.gorb.sb .obbl{opacity:1;transform:translateX(-50%) translateY(0);}
+.gorb.reverse .obbl{transform:translateX(-50%) translateY(8px);}
+.gorb.reverse.sb .obbl{transform:translateX(-50%) translateY(0);}
+@media(hover:hover){.gorb:hover{filter:brightness(1.1);}}
+@media(max-width:768px){.pcat{width:40px;height:32px;}.obbl{font-size:10.5px;max-width:180px;padding:7px 11px;}}
+/* Highlight target the cat is pointing at */
+.cat-highlight{outline:2px solid var(--lime);outline-offset:6px;box-shadow:0 0 0 6px rgba(200,255,56,.12),0 0 24px rgba(200,255,56,.25);transition:all .35s var(--eo);border-radius:var(--rl);animation:catGlow 2s ease-in-out infinite;}
+@keyframes catGlow{0%,100%{box-shadow:0 0 0 6px rgba(200,255,56,.12),0 0 24px rgba(200,255,56,.25);}50%{box-shadow:0 0 0 8px rgba(200,255,56,.22),0 0 32px rgba(200,255,56,.4);}}
 
 /* ── TOAST ── */
 .toast{position:fixed;bottom:calc(26px + var(--sa-bot));right:calc(26px + var(--sa-right));background:#111;border:1px solid rgba(200,255,56,.2);color:var(--tx);padding:10px 16px;border-radius:var(--r);font-size:12.5px;font-weight:500;z-index:2000;transform:translateY(60px);opacity:0;transition:all .35s var(--eb);max-width:320px;}
@@ -707,14 +770,15 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
 .ch.locked{opacity:.7;background:rgba(255,180,71,.04);border-color:rgba(255,180,71,.15);}
 .ch.locked .chl{color:var(--t2);}
 .ch.paused{opacity:.65;background:rgba(255,180,71,.03);}
-.ch-lock{font-size:14px;width:20px;text-align:center;flex-shrink:0;}
-.ch-xp{font-size:10px;font-weight:800;color:var(--lime);letter-spacing:1px;flex-shrink:0;opacity:.7;}
+.ch-lock{font-size:14px;width:18px;text-align:center;flex-shrink:0;}
+.ch-xp{font-size:10px;font-weight:800;color:var(--lime);letter-spacing:1px;flex-shrink:0;opacity:.65;line-height:1;}
 .ch-cd{margin-left:auto;font-size:10px;font-weight:700;color:var(--gold);letter-spacing:0;flex-shrink:0;font-variant-numeric:tabular-nums;background:rgba(255,180,71,.08);padding:2px 7px;border-radius:99px;border:1px solid rgba(255,180,71,.18);}
-.ch-cfg{background:transparent;border:none;color:var(--t3);cursor:pointer;padding:0 4px;font-size:14px;font-family:inherit;line-height:1;transition:color .2s;}
+.ch-cfg{background:transparent;border:none;color:var(--t3);cursor:pointer;padding:0 3px;font-size:14px;font-family:inherit;line-height:1;transition:color .2s;flex-shrink:0;}
 .ch-cfg:hover{color:var(--lime);}
-.ch-streak{margin-left:auto;}
+.ch-streak{margin-left:auto;flex-shrink:0;}
 .ch-cd ~ .ch-cfg{margin-left:0;}
-.ch-del{margin-left:0;}
+.ch-del{margin-left:0;flex-shrink:0;}
+@media(max-width:560px){.ch{gap:6px;padding:8px 10px;}.ch-xp{display:none;}.chio{display:none;}}
 /* ── XP HUD ── */
 .xp-hud{display:flex;align-items:center;gap:8px;margin-top:8px;padding:8px 12px;background:rgba(200,255,56,.04);border:1px solid rgba(200,255,56,.12);border-radius:99px;font-size:11px;font-weight:700;color:var(--lime);}
 .xp-hud-bar{flex:1;height:4px;background:rgba(200,255,56,.08);border-radius:99px;overflow:hidden;}
@@ -770,46 +834,67 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
 
 <!-- ══ AUTH MODAL ══ -->
 <div class="auth-modal" id="authModal">
-  <div class="auth-card">
-    <div class="auth-eyebrow">🔥 Live Sync</div>
-    <h2>Sync Across <span class="hi">All Devices</span></h2>
-    <p style="color:var(--t2);font-size:13px;margin-bottom:18px;">Sign in once and your data syncs live to every device. Use Google for one-tap or email below.</p>
+  <div class="auth-card" id="authCard">
+    <div class="auth-main">
+      <div class="auth-eyebrow">🔥 Live Sync</div>
+      <h2>Sync Across <span class="hi">All Devices</span></h2>
+      <p style="color:var(--t2);font-size:13px;margin-bottom:14px;">One tap with Google or use email below.</p>
 
-    <!-- Config paste area (shown when no config exists) -->
-    <div id="fbConfigArea" style="display:none;margin-bottom:16px;">
-      <p style="font-size:12px;color:var(--t2);margin-bottom:8px;">Paste your Firebase project config JSON:</p>
-      <textarea id="fbConfigTextarea" class="auth-inp" rows="5" placeholder='{"apiKey":"...","authDomain":"...","databaseURL":"...","projectId":"..."}'
-        style="height:auto;font-size:11px;font-family:monospace;resize:vertical;"></textarea>
-      <button class="auth-btn" id="fbSaveConfigBtn" style="margin-top:8px;width:100%;">Save Firebase Config</button>
-      <details style="margin-top:10px;">
-        <summary style="font-size:11px;color:var(--t2);cursor:pointer;">How to get your config?</summary>
-        <ol style="font-size:11px;color:var(--t2);margin-top:8px;padding-left:16px;line-height:1.8;">
-          <li>Go to <a href="https://console.firebase.google.com" target="_blank" style="color:var(--lime);">console.firebase.google.com</a></li>
-          <li>Create a project (free Spark plan)</li>
-          <li>Add a Web App → copy the firebaseConfig object</li>
-          <li>Enable Realtime Database (Build → Realtime Database)</li>
-          <li>Enable Authentication → Email/Password</li>
+      <div class="auth-mode-tabs">
+        <button class="auth-mode-tab active" data-mode="signin">Sign In</button>
+        <button class="auth-mode-tab" data-mode="signup">Create Account</button>
+      </div>
+
+      <button class="auth-btn google" id="fbGoogleBtn">
+        <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3l5.7-5.7C34.6 6.1 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.3-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.1l6.6 4.8C14.6 15.1 18.9 12 24 12c3.1 0 5.8 1.2 7.9 3l5.7-5.7C34.6 6.1 29.6 4 24 4 16 4 9 8.6 6.3 14.1z"/><path fill="#4CAF50" d="M24 44c5.5 0 10.4-2.1 14.2-5.5l-6.6-5.4c-2 1.4-4.6 2.4-7.6 2.4-5.3 0-9.7-3.3-11.3-8l-6.5 5C9 39.4 16 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.3 5.7l6.6 5.4C40.3 36.1 44 30.6 44 24c0-1.3-.1-2.3-.4-3.5z"/></svg>
+        <span id="googleBtnLabel">Continue with Google</span>
+      </button>
+
+      <div class="auth-divider"><div></div>or email<div></div></div>
+
+      <!-- SIGN IN FORM -->
+      <form class="auth-form active" id="signInForm" autocomplete="on" onsubmit="return false;">
+        <input class="auth-inp" id="siEmail" type="email" placeholder="your@email.com" autocomplete="email" required/>
+        <input class="auth-inp" id="siPass" type="password" placeholder="Password" autocomplete="current-password" required/>
+        <button class="auth-btn" id="siSubmit" type="submit">Sign In</button>
+        <button class="auth-mode-link" id="siForgot" type="button">Forgot password?</button>
+      </form>
+
+      <!-- SIGN UP FORM -->
+      <form class="auth-form" id="signUpForm" autocomplete="on" onsubmit="return false;">
+        <input class="auth-inp" id="suName" type="text" placeholder="Your name (optional)" autocomplete="name" maxlength="40"/>
+        <input class="auth-inp" id="suEmail" type="email" placeholder="your@email.com" autocomplete="email" required/>
+        <input class="auth-inp" id="suPass" type="password" placeholder="Password (min 6 chars)" autocomplete="new-password" minlength="6" required/>
+        <input class="auth-inp" id="suPass2" type="password" placeholder="Confirm password" autocomplete="new-password" minlength="6" required/>
+        <button class="auth-btn" id="suSubmit" type="submit">Create Account</button>
+      </form>
+
+      <div class="auth-actions-row">
+        <button class="auth-btn ghost" id="fbAuthSkip" type="button">Skip — offline only</button>
+        <button class="auth-cfg-btn" id="fbConfigBtn" type="button">⚙ <span id="fbConfigBtnLabel">Paste Firebase config</span></button>
+      </div>
+
+      <div class="auth-msg" id="authMsg"></div>
+    </div>
+
+    <!-- CONFIG SIDE PANEL (horizontal expansion) -->
+    <div class="auth-side" id="fbConfigArea">
+      <div class="auth-side-hd">
+        <div class="auth-eyebrow" style="margin:0;">Firebase Config</div>
+        <button class="auth-side-close" id="fbConfigClose">×</button>
+      </div>
+      <p style="font-size:12px;color:var(--t2);margin-bottom:10px;line-height:1.55;">Paste the entire <code style="color:var(--lime);">firebaseConfig</code> object (or just the JSON braces).</p>
+      <textarea id="fbConfigTextarea" class="auth-inp" rows="9" placeholder='{"apiKey":"...","authDomain":"...","databaseURL":"...","projectId":"..."}' style="height:auto;font-size:11px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;resize:vertical;"></textarea>
+      <button class="auth-btn" id="fbSaveConfigBtn" style="margin-top:10px;width:100%;">Save Config</button>
+      <details style="margin-top:14px;">
+        <summary style="font-size:11px;color:var(--t2);cursor:pointer;">How to get the config →</summary>
+        <ol style="font-size:11px;color:var(--t2);margin-top:8px;padding-left:16px;line-height:1.9;">
+          <li><a href="https://console.firebase.google.com" target="_blank" style="color:var(--lime);">console.firebase.google.com</a></li>
+          <li>Project Settings → Web app → copy firebaseConfig</li>
+          <li>Enable Realtime DB + Authentication</li>
         </ol>
       </details>
     </div>
-
-    <!-- Sign in area -->
-    <div id="fbSignInArea">
-      <button class="auth-btn google" id="fbGoogleBtn" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;color:#222;border:none;margin-bottom:10px;">
-        <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3l5.7-5.7C34.6 6.1 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.3-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.1l6.6 4.8C14.6 15.1 18.9 12 24 12c3.1 0 5.8 1.2 7.9 3l5.7-5.7C34.6 6.1 29.6 4 24 4 16 4 9 8.6 6.3 14.1z"/><path fill="#4CAF50" d="M24 44c5.5 0 10.4-2.1 14.2-5.5l-6.6-5.4c-2 1.4-4.6 2.4-7.6 2.4-5.3 0-9.7-3.3-11.3-8l-6.5 5C9 39.4 16 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.3 5.7l6.6 5.4C40.3 36.1 44 30.6 44 24c0-1.3-.1-2.3-.4-3.5z"/></svg>
-        Continue with Google
-      </button>
-      <div style="display:flex;align-items:center;gap:8px;margin:10px 0;color:var(--t3);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;"><div style="flex:1;height:1px;background:var(--bd);"></div>or email<div style="flex:1;height:1px;background:var(--bd);"></div></div>
-      <input class="auth-inp" id="fbEmailInp" type="email" placeholder="your@email.com" autocomplete="email"/>
-      <input class="auth-inp" id="fbPassInp" type="password" placeholder="Password (min 6 chars)" autocomplete="current-password" style="margin-top:8px;"/>
-      <div class="auth-actions" style="margin-top:12px;">
-        <button class="auth-btn" id="fbAuthSubmit">Sign In</button>
-        <button class="auth-btn ghost" id="fbAuthSkip">Use Offline Only</button>
-      </div>
-      <button class="auth-mode-link" id="fbAuthMode" style="background:none;border:none;color:var(--lime);font-size:12px;cursor:pointer;text-decoration:underline;font-family:inherit;margin-top:10px;display:block;text-align:center;width:100%;">New here? Create account</button>
-      <button class="auth-mode-link" id="fbConfigBtn" style="background:none;border:none;color:var(--t2);font-size:11px;cursor:pointer;font-family:inherit;margin-top:6px;display:block;text-align:center;width:100%;">&#9881; Paste Firebase config</button>
-    </div>
-    <div class="auth-msg" id="authMsg"></div>
   </div>
 </div>
 
@@ -1434,39 +1519,110 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
 </div>
 
 <!-- Guide Orb -->
-<div class="gorb" id="gorb" title="Click to pause/play">
-  <div class="obbl" id="obbl">Begin the day.</div>
-  <div class="pcat" id="pcat">
-    <svg viewBox="0 0 16 12" shape-rendering="crispEdges">
-      <!-- ears -->
-      <rect x="1" y="1" width="2" height="2" fill="#c8ff38"/>
-      <rect x="4" y="0" width="1" height="1" fill="#c8ff38"/>
-      <rect x="11" y="0" width="1" height="1" fill="#c8ff38"/>
-      <rect x="13" y="1" width="2" height="2" fill="#c8ff38"/>
-      <!-- inner ear -->
-      <rect x="2" y="2" width="1" height="1" fill="#7aa023"/>
-      <rect x="13" y="2" width="1" height="1" fill="#7aa023"/>
-      <!-- head/body -->
-      <rect x="1" y="3" width="14" height="6" fill="#c8ff38"/>
-      <!-- eyes -->
-      <rect x="4" y="5" width="1" height="2" fill="#0a0a0a"/>
-      <rect x="11" y="5" width="1" height="2" fill="#0a0a0a"/>
-      <!-- nose/mouth -->
-      <rect x="7" y="7" width="2" height="1" fill="#ff8da3"/>
-      <rect x="6" y="8" width="1" height="1" fill="#0a0a0a"/>
-      <rect x="9" y="8" width="1" height="1" fill="#0a0a0a"/>
-      <!-- legs (2 frames swap via animation, both shown but animated y) -->
-      <rect x="2" y="9" width="2" height="2" fill="#c8ff38"/>
-      <rect x="6" y="9" width="2" height="2" fill="#c8ff38"/>
-      <rect x="9" y="9" width="2" height="2" fill="#c8ff38"/>
-      <rect x="12" y="9" width="2" height="2" fill="#c8ff38"/>
-      <!-- paws -->
-      <rect x="2" y="10" width="1" height="1" fill="#7aa023"/>
-      <rect x="13" y="10" width="1" height="1" fill="#7aa023"/>
-      <!-- tail -->
-      <rect x="15" y="4" width="1" height="3" fill="#c8ff38"/>
-      <rect x="14" y="3" width="1" height="1" fill="#c8ff38"/>
-    </svg>
+<div class="gorb walking" id="gorb" title="Click for wisdom">
+  <div class="pcat-stage" id="pcatStage">
+    <div class="obbl" id="obbl"><span class="obbl-tag" id="obblTag">Sage</span><span id="obblText">Begin the day.</span></div>
+    <div class="pcat-flipper">
+    <div class="pcat" id="pcat" data-pose="walk">
+      <svg viewBox="0 0 16 12" shape-rendering="crispEdges" preserveAspectRatio="xMidYMid meet">
+        <!-- WALK pose (default) -->
+        <g class="pose on" data-pose="walk">
+          <rect x="1" y="1" width="2" height="2" fill="#c8ff38"/>
+          <rect x="4" y="0" width="1" height="1" fill="#c8ff38"/>
+          <rect x="11" y="0" width="1" height="1" fill="#c8ff38"/>
+          <rect x="13" y="1" width="2" height="2" fill="#c8ff38"/>
+          <rect x="2" y="2" width="1" height="1" fill="#7aa023"/>
+          <rect x="13" y="2" width="1" height="1" fill="#7aa023"/>
+          <rect x="1" y="3" width="14" height="6" fill="#c8ff38"/>
+          <rect x="4" y="5" width="1" height="2" fill="#0a0a0a"/>
+          <rect x="11" y="5" width="1" height="2" fill="#0a0a0a"/>
+          <rect x="7" y="7" width="2" height="1" fill="#ff8da3"/>
+          <rect x="6" y="8" width="1" height="1" fill="#0a0a0a"/>
+          <rect x="9" y="8" width="1" height="1" fill="#0a0a0a"/>
+          <rect x="2" y="9" width="2" height="2" fill="#c8ff38"/>
+          <rect x="6" y="9" width="2" height="2" fill="#c8ff38"/>
+          <rect x="9" y="9" width="2" height="2" fill="#c8ff38"/>
+          <rect x="12" y="9" width="2" height="2" fill="#c8ff38"/>
+          <rect x="2" y="10" width="1" height="1" fill="#7aa023"/>
+          <rect x="13" y="10" width="1" height="1" fill="#7aa023"/>
+          <rect x="15" y="4" width="1" height="3" fill="#c8ff38"/>
+          <rect x="14" y="3" width="1" height="1" fill="#c8ff38"/>
+        </g>
+        <!-- SIT pose -->
+        <g class="pose" data-pose="sit">
+          <rect x="2" y="1" width="2" height="2" fill="#c8ff38"/>
+          <rect x="12" y="1" width="2" height="2" fill="#c8ff38"/>
+          <rect x="3" y="2" width="1" height="1" fill="#7aa023"/>
+          <rect x="12" y="2" width="1" height="1" fill="#7aa023"/>
+          <rect x="2" y="3" width="12" height="5" fill="#c8ff38"/>
+          <rect x="5" y="5" width="1" height="2" fill="#0a0a0a"/>
+          <rect x="10" y="5" width="1" height="2" fill="#0a0a0a"/>
+          <rect x="7" y="7" width="2" height="1" fill="#ff8da3"/>
+          <rect x="3" y="8" width="10" height="3" fill="#c8ff38"/>
+          <rect x="4" y="10" width="2" height="1" fill="#7aa023"/>
+          <rect x="10" y="10" width="2" height="1" fill="#7aa023"/>
+          <rect x="13" y="6" width="2" height="1" fill="#c8ff38"/>
+          <rect x="14" y="7" width="1" height="2" fill="#c8ff38"/>
+          <rect x="13" y="9" width="1" height="1" fill="#c8ff38"/>
+        </g>
+        <!-- SLEEP pose -->
+        <g class="pose" data-pose="sleep">
+          <rect x="13" y="2" width="2" height="2" fill="#c8ff38" opacity=".5"/>
+          <rect x="14" y="1" width="1" height="1" fill="#c8ff38" opacity=".5"/>
+          <rect x="2" y="6" width="13" height="4" fill="#c8ff38"/>
+          <rect x="12" y="5" width="3" height="1" fill="#c8ff38"/>
+          <rect x="13" y="7" width="1" height="1" fill="#0a0a0a"/>
+          <rect x="14" y="7" width="1" height="1" fill="#0a0a0a"/>
+          <rect x="3" y="10" width="2" height="1" fill="#7aa023"/>
+          <rect x="9" y="10" width="2" height="1" fill="#7aa023"/>
+          <rect x="1" y="7" width="1" height="3" fill="#c8ff38"/>
+        </g>
+        <!-- STRETCH pose -->
+        <g class="pose" data-pose="stretch">
+          <rect x="13" y="3" width="2" height="2" fill="#c8ff38"/>
+          <rect x="14" y="2" width="1" height="1" fill="#c8ff38"/>
+          <rect x="13" y="4" width="1" height="1" fill="#7aa023"/>
+          <rect x="4" y="4" width="11" height="4" fill="#c8ff38"/>
+          <rect x="2" y="6" width="3" height="3" fill="#c8ff38"/>
+          <rect x="11" y="6" width="1" height="1" fill="#0a0a0a"/>
+          <rect x="13" y="6" width="1" height="1" fill="#0a0a0a"/>
+          <rect x="3" y="8" width="2" height="1" fill="#ff8da3"/>
+          <rect x="0" y="9" width="3" height="2" fill="#c8ff38"/>
+          <rect x="3" y="10" width="2" height="1" fill="#c8ff38"/>
+          <rect x="11" y="8" width="2" height="3" fill="#c8ff38"/>
+          <rect x="13" y="9" width="2" height="2" fill="#c8ff38"/>
+          <rect x="14" y="0" width="1" height="2" fill="#c8ff38"/>
+          <rect x="15" y="1" width="1" height="2" fill="#c8ff38"/>
+        </g>
+        <!-- POINT pose (right paw raised) -->
+        <g class="pose" data-pose="point">
+          <rect x="1" y="1" width="2" height="2" fill="#c8ff38"/>
+          <rect x="4" y="0" width="1" height="1" fill="#c8ff38"/>
+          <rect x="11" y="0" width="1" height="1" fill="#c8ff38"/>
+          <rect x="13" y="1" width="2" height="2" fill="#c8ff38"/>
+          <rect x="2" y="2" width="1" height="1" fill="#7aa023"/>
+          <rect x="13" y="2" width="1" height="1" fill="#7aa023"/>
+          <rect x="1" y="3" width="14" height="6" fill="#c8ff38"/>
+          <rect x="4" y="5" width="1" height="2" fill="#0a0a0a"/>
+          <rect x="11" y="5" width="1" height="2" fill="#0a0a0a"/>
+          <rect x="7" y="7" width="2" height="1" fill="#ff8da3"/>
+          <rect x="6" y="8" width="1" height="1" fill="#0a0a0a"/>
+          <rect x="9" y="8" width="1" height="1" fill="#0a0a0a"/>
+          <rect x="2" y="9" width="2" height="2" fill="#c8ff38"/>
+          <rect x="6" y="9" width="2" height="2" fill="#c8ff38"/>
+          <rect x="9" y="9" width="2" height="2" fill="#c8ff38"/>
+          <!-- raised front paw -->
+          <rect x="14" y="6" width="2" height="1" fill="#c8ff38"/>
+          <rect x="15" y="5" width="1" height="1" fill="#c8ff38"/>
+          <rect x="15" y="7" width="1" height="1" fill="#7aa023"/>
+          <rect x="12" y="9" width="1" height="2" fill="#c8ff38"/>
+          <!-- tail up -->
+          <rect x="0" y="3" width="1" height="3" fill="#c8ff38"/>
+          <rect x="0" y="2" width="1" height="1" fill="#c8ff38"/>
+        </g>
+      </svg>
+    </div>
+    </div>
   </div>
 </div>
 <div class="toast" id="toast"></div>
