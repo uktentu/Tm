@@ -1441,19 +1441,9 @@ function renderNutrition(){
       <div class="pbar ${b.cls}"><div class="pbar-fill" style="width:${pct}%"></div></div>
     </div>`;
   }).join('');
-  const glasses=ls('water:'+today,0);
-  document.getElementById('glassCount').textContent=glasses;
-  document.getElementById('glasses').innerHTML=Array.from({length:7},(_,i)=>`
-    <div class="glass${i<glasses?' filled':''}" data-g="${i}">💧</div>`).join('');
-  document.querySelectorAll('.glass').forEach(el=>{
-    el.addEventListener('click',()=>{
-      const g=+el.dataset.g+1;
-      const newVal=ls('water:'+today,0)===g?g-1:g;
-      lsSet('water:'+today,newVal);
-      if(newVal>=7){const d=ls('daily:'+today,{});d['water']=true;lsSet('daily:'+today,d);renderToday();}
-      renderNutrition();toast(newVal>=7?'Hydration goal hit! 💧':'Glass logged.');
-    });
-  });
+  // Auto-tick the "water" non-negotiable when daily goal reached
+  const goalReached=ls('water:'+today,0)>=getWaterGoal();
+  if(goalReached){const d=ls('daily:'+today,{});if(!d['water']){d['water']=true;lsSet('daily:'+today,d);}}
   document.getElementById('meals').innerHTML=MEALS.map((m,mi)=>`
     <div class="meal">
       <div class="mhd">
