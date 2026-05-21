@@ -595,6 +595,59 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
 @media(max-width:768px){:root{--hdr:52px;}.wm{display:none;}.slbl{display:none;}.today-extra{grid-template-columns:1fr 1fr;}.mrings{grid-template-columns:repeat(2,1fr);}.macro-bars{grid-template-columns:1fr;}.bmadd{grid-template-columns:1fr 1fr;}.pr-g{grid-template-columns:repeat(2,1fr);}.op-grid{grid-template-columns:repeat(4,1fr);}.prin-list li{font-size:12px;}.gorb{display:none;}.train-hero{grid-template-columns:1fr;}.th-meta{text-align:left;}.sync-chip span:not(.sc-dot){display:none;}.sync-chip{padding:5px 8px;}}
 @media(max-width:480px){.ndots{gap:4px;}.ndot{width:6px;height:6px;min-width:6px;}.ndot.active{width:22px;}.today-extra{grid-template-columns:1fr;}.mrings{grid-template-columns:repeat(2,1fr);}.bmadd{grid-template-columns:1fr;}.pr-g{grid-template-columns:1fr 1fr;}.op-grid{grid-template-columns:repeat(3,1fr);}.stk-n{font-size:clamp(56px,18vw,104px);}.an-top{grid-template-columns:1fr 1fr;}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;}}
+/* ── HABIT STREAKS ── */
+.ch-streak{margin-left:auto;font-size:10px;font-weight:700;color:var(--t3);letter-spacing:0;flex-shrink:0;}
+.ch-streak.hot{color:var(--lime);}
+.hs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-top:12px;}
+.hs-item{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);padding:10px 12px;display:flex;justify-content:space-between;align-items:center;}
+.hs-lbl{font-size:12px;font-weight:600;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:80px;}
+.hs-streak{font-family:var(--fd);font-size:18px;font-weight:800;color:var(--t2);flex-shrink:0;}
+.hs-streak.hot{color:var(--lime);}
+/* ── JOURNAL ── */
+.journal-card{display:flex;flex-direction:column;gap:10px;}
+.jf-lbl{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-bottom:4px;display:block;}
+.jf-inp{width:100%;background:rgba(255,255,255,.04);border:1px solid var(--bd);border-radius:var(--r);color:var(--tx);font-family:inherit;font-size:13px;padding:8px 10px;resize:none;outline:none;transition:border-color .2s;}
+.jf-inp:focus{border-color:var(--lime);}
+.energy-dots{display:flex;gap:6px;margin-top:2px;}
+.edot{width:28px;height:28px;border-radius:50%;border:1px solid var(--bd2);background:var(--s2);cursor:pointer;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;transition:all .2s;font-family:inherit;color:var(--tx);}
+.edot.sel{background:var(--lime);color:#090909;border-color:var(--lime);}
+/* ── MEASUREMENTS ── */
+.meas-card{background:var(--s1);border:1px solid var(--bd);border-radius:var(--rl);padding:clamp(16px,2.5vw,22px);margin-bottom:clamp(16px,2vh,20px);position:relative;z-index:1;}
+.meas-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin:12px 0;}
+.meas-item{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);padding:10px 12px;}
+.meas-lbl{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-bottom:4px;}
+.meas-val{font-family:var(--fd);font-size:clamp(18px,3vw,22px);font-weight:800;letter-spacing:-0.5px;}
+.meas-delta{font-size:11px;font-weight:700;margin-top:2px;}
+.meas-delta.up{color:var(--lime);}.meas-delta.dn{color:var(--red);}
+.meas-form{padding:14px 0 0;border-top:1px solid var(--bd);display:none;}
+.meas-form.open{display:block;}
+.meas-form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:10px;}
+/* ── CUSTOM PR ── */
+.pr-add{display:flex;gap:8px;align-items:center;margin-top:12px;padding-top:10px;border-top:1px solid var(--bd);}
+.pr-add-inp{background:rgba(255,255,255,.04);border:1px solid var(--bd);border-radius:var(--r);color:var(--tx);font-family:inherit;font-size:12px;padding:7px 10px;flex:1;outline:none;transition:border-color .2s;}
+.pr-add-inp:focus{border-color:var(--lime);}
+.pr-del{background:transparent;border:none;color:var(--t3);cursor:pointer;font-size:14px;padding:0 4px;transition:color .2s;font-family:inherit;vertical-align:middle;}
+.pr-del:hover{color:var(--red);}
+/* ── SCHEDULE EDIT ── */
+.sched-controls{display:flex;gap:8px;padding:0 clamp(16px,3vw,44px) clamp(16px,2vh,20px);}
+.blk-edit-btn{background:transparent;border:none;color:var(--t3);cursor:pointer;padding:2px 5px;border-radius:4px;transition:all .2s;font-size:12px;font-family:inherit;position:absolute;top:8px;right:8px;opacity:0;line-height:1;}
+.blk:hover .blk-edit-btn{opacity:1;color:var(--lime);}
+.blk{position:relative;}
+.sched-modal{position:fixed;inset:0;background:rgba(4,4,7,.97);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);z-index:9980;display:none;align-items:center;justify-content:center;padding:clamp(16px,4vw,32px);overflow-y:auto;}
+.sched-modal.show{display:flex;}
+.sched-modal-card{background:var(--s1);border:1px solid var(--bd2);border-radius:var(--rxl);padding:clamp(20px,3vw,36px);max-width:520px;width:100%;max-height:90vh;overflow-y:auto;}
+.sched-modal-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid var(--bd);}
+.sched-modal-hd h3{font-family:var(--fd);font-size:20px;font-weight:800;letter-spacing:-0.5px;}
+.sched-field{display:flex;flex-direction:column;margin-bottom:12px;}
+.sched-field label{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-bottom:4px;}
+.sched-field input,.sched-field select,.sched-field textarea{background:rgba(255,255,255,.04);border:1px solid var(--bd);border-radius:var(--r);color:var(--tx);font-family:inherit;font-size:13px;padding:8px 10px;outline:none;transition:border-color .2s;}
+.sched-field input:focus,.sched-field select:focus,.sched-field textarea:focus{border-color:var(--lime);}
+.sched-field textarea{resize:vertical;min-height:60px;}
+.sched-modal-actions{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;}
+/* ── ENERGY SPARK ── */
+.an-energy-card{background:var(--s1);border:1px solid var(--bd);border-radius:var(--rl);padding:clamp(16px,2.5vw,22px);margin-bottom:clamp(14px,2vh,20px);position:relative;z-index:1;}
+.an-energy-spark{display:flex;gap:3px;align-items:flex-end;height:48px;margin-top:12px;}
+.an-e-bar{flex:1;border-radius:2px 2px 0 0;min-width:4px;}
 </style>
 </head>
 <body>
@@ -816,10 +869,24 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
           <div class="te-val" id="xPhase" style="font-size:clamp(16px,3vw,24px)">—</div>
           <div class="te-sub" id="xPhaseSub">—</div>
         </div>
-        <div class="te-card">
-          <div class="te-lbl">Today's Focus</div>
-          <input class="focus-inp" id="focusInp" placeholder="What is the 1 thing that matters today?" maxlength="80"/>
-          <div class="te-sub" style="margin-top:8px;">Saved automatically</div>
+        <div class="te-card journal-card">
+          <div class="te-lbl">Today's Log</div>
+          <div>
+            <span class="jf-lbl">Today's Win</span>
+            <textarea class="jf-inp" id="journalWin" rows="2" placeholder="What went well today?"></textarea>
+          </div>
+          <div>
+            <span class="jf-lbl">One Miss</span>
+            <textarea class="jf-inp" id="journalMiss" rows="2" placeholder="What would you do differently?"></textarea>
+          </div>
+          <div>
+            <span class="jf-lbl">Top Focus</span>
+            <input class="jf-inp" id="focusInp" placeholder="1 thing that matters most" maxlength="80"/>
+          </div>
+          <div>
+            <span class="jf-lbl">Energy (1–5)</span>
+            <div class="energy-dots" id="energyDots"></div>
+          </div>
         </div>
       </div>
     </section>
@@ -839,6 +906,10 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
         </div>
       </div>
       <div class="bgrid" id="bgrid"></div>
+      <div class="sched-controls">
+        <button class="wt-sv" id="addBlockBtn">+ Add Block</button>
+        <button class="wt-sv" id="resetSchedBtn" style="border-color:rgba(255,69,51,.3);color:var(--red);">↺ Reset Default</button>
+      </div>
       <div class="sched-tip">
         <h4>Building the Habit Stack</h4>
         <div class="tip-grid">
@@ -1050,6 +1121,7 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
           <div class="sbig"><div class="sbl">Best Streak</div><div class="sbv" id="bstk">0</div><div class="sbs">days in a row</div></div>
           <div class="sbig"><div class="sbl">Total Tasks</div><div class="sbv" id="ttasks">0</div><div class="sbs">lifetime</div></div>
           <div class="sbig"><div class="sbl">Avg Daily Rate</div><div class="sbv" id="avgr">0%</div><div class="sbs">completion</div></div>
+          <div class="sbig"><div class="sbl">Journal Streak</div><div class="sbv" id="journalStreak">0</div><div class="sbs">days logged</div></div>
         </div>
       </div>
       <div class="charts-row">
@@ -1077,10 +1149,34 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
         <div class="pr-card">
           <div class="ctit">Personal Records</div>
           <div class="pr-g" id="prgrid"></div>
+          <div class="pr-add">
+            <input class="pr-add-inp" id="newPRLift" placeholder="Add lift name…" maxlength="40"/>
+            <button class="wt-sv" id="addPRLiftBtn">+ Add</button>
+          </div>
         </div>
       </div>
+      <div class="meas-card">
+        <div class="ctit">Body Measurements</div>
+        <div class="meas-grid" id="measGrid"></div>
+        <div class="meas-form" id="measForm">
+          <div class="meas-form-grid">
+            <div class="mf-field"><label class="mf-lbl">Chest (cm)</label><input class="mf-inp" id="mChest" type="number" step="0.1" placeholder="95"></div>
+            <div class="mf-field"><label class="mf-lbl">Waist (cm)</label><input class="mf-inp" id="mWaist" type="number" step="0.1" placeholder="78"></div>
+            <div class="mf-field"><label class="mf-lbl">Hips (cm)</label><input class="mf-inp" id="mHips" type="number" step="0.1" placeholder="92"></div>
+            <div class="mf-field"><label class="mf-lbl">L Arm (cm)</label><input class="mf-inp" id="mLArm" type="number" step="0.1" placeholder="33"></div>
+            <div class="mf-field"><label class="mf-lbl">R Arm (cm)</label><input class="mf-inp" id="mRArm" type="number" step="0.1" placeholder="34"></div>
+            <div class="mf-field"><label class="mf-lbl">Body Fat %</label><input class="mf-inp" id="mBF" type="number" step="0.1" placeholder="15"></div>
+          </div>
+          <button class="wt-sv" id="saveMeasBtn">Save Measurements</button>
+        </div>
+        <button class="wt-sv" id="logMeasBtn" style="margin-top:10px;">+ Log Measurements</button>
+      </div>
+      <div class="cc" style="margin-bottom:clamp(16px,2vh,20px);">
+        <div class="ctit">Habit Streaks</div>
+        <div class="hs-grid" id="habitStreaksGrid"></div>
+      </div>
       <div class="heat-s">
-        <div class="hl">Last 14 Days — brighter cells = more items completed</div>
+        <div class="hl">Last 30 Days — brighter cells = more items completed</div>
         <div class="hg" id="hgrid"></div>
       </div>
       <div class="wsummary">
@@ -1136,6 +1232,11 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
         </div>
       </div>
 
+      <div class="an-energy-card">
+        <div class="an-cat-hd"><h4>Daily Energy — Last 30 Days</h4></div>
+        <div class="an-energy-spark" id="anEnergySpark"></div>
+      </div>
+
       <div class="an-insights">
         <h4>🔮 Personal Insights</h4>
         <ul id="anInsights"><li>Log a few days to unlock personalized insights.</li></ul>
@@ -1160,6 +1261,33 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
 <div class="gorb" id="gorb"><div class="obbl" id="obbl">Begin the day.</div><div class="orb"></div></div>
 <div class="toast" id="toast"></div>
 
+<div class="sched-modal" id="schedModal">
+  <div class="sched-modal-card">
+    <div class="sched-modal-hd">
+      <h3 id="schedModalTitle">Edit Block</h3>
+      <button class="sp-close" id="schedModalClose">×</button>
+    </div>
+    <div class="sched-field"><label>Time (HH:MM)</label><input id="seBkTime" placeholder="07:00" maxlength="5"></div>
+    <div class="sched-field"><label>Block Name</label><input id="seBkName" placeholder="e.g. Workout" maxlength="50"></div>
+    <div class="sched-field"><label>Category</label>
+      <select id="seBkTag">
+        <option value="self">Self</option>
+        <option value="eat">Eat</option>
+        <option value="train">Train</option>
+        <option value="work">Work</option>
+        <option value="rest">Rest</option>
+      </select>
+    </div>
+    <div class="sched-field"><label>Description</label><textarea id="seBkDesc" placeholder="What to do, how to do it"></textarea></div>
+    <div class="sched-field"><label>Alarm Label</label><input id="seBkAlarm" placeholder="Alarm 07:00 or —" maxlength="30"></div>
+    <div class="sched-modal-actions">
+      <button class="auth-btn" id="saveSchedBlockBtn">Save Block</button>
+      <button class="auth-btn ghost" id="deleteSchedBlockBtn" style="display:none;color:var(--red);border-color:rgba(255,69,51,.3);">Delete</button>
+      <button class="auth-btn ghost" id="cancelSchedBlockBtn">Cancel</button>
+    </div>
+    <div class="auth-msg" id="schedMsg"></div>
+  </div>
+</div>
 <div class="session-modal" id="sessionModal">
   <div class="session-modal-card">
     <div class="session-modal-hd">

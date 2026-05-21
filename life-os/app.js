@@ -343,6 +343,7 @@ let curSec=0,transitioning=false;
 let curP=ls('profile','A');
 let analyticsRange=30;
 let activeDayIdx=Math.max(0,new Date().getDay()-1);
+let pendingSchedBlockIdx=-1;
 let rtSec=90,rtCur=90,rtRun=false,rtInt=null;
 let calMonth=new Date().getMonth(),calYear=new Date().getFullYear();
 let deferredPrompt=null;
@@ -597,6 +598,39 @@ function getAllChecks(){
 
 function getCustomMeals(){return ls('custom_meals',[]);}
 
+function computeHabitStreak(habitId){
+  let streak=0;
+  for(let i=0;i<30;i++){
+    const d=new Date();d.setDate(d.getDate()-i);
+    const data=ls('daily:'+d.toISOString().slice(0,10),{});
+    if(!data[habitId])break;
+    streak++;
+  }
+  return streak;
+}
+
+function computeJournalStreak(){
+  let streak=0;
+  for(let i=0;i<365;i++){
+    const d=new Date();d.setDate(d.getDate()-i);
+    const j=ls('journal:'+d.toISOString().slice(0,10),{});
+    if(!j.win&&!j.miss&&!j.focus&&!j.energy)break;
+    streak++;
+  }
+  return streak;
+}
+
+const PR_LIFTS_DEFAULT=['Bench Press','Deadlift','Squat','Overhead Press','Barbell Row','Pull-Ups'];
+function getAllPRLifts(){return[...PR_LIFTS_DEFAULT,...ls('custom_prs',[])];}
+function getLastMeasDate(){
+  let latest=null;
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i);
+    if(k&&k.startsWith('measurements:')){const d=k.slice(13);if(!latest||d>latest)latest=d;}
+  }
+  return latest;
+}
+
 function getConsumedMacros(){
   const data=ls('daily:'+today,{});
   let P=0,C=0,F=0,K=0;
@@ -659,13 +693,15 @@ function renderToday(){
     {l:'Phase',v:ts.split,hi:true},
   ].map(p=>`<div class="pill${p.hi?' hi':''}"><span class="pl">${p.l}</span><span class="pv">${p.v}</span></div>`).join('');
 
-  document.getElementById('checks').innerHTML=allChecks.map(c=>`
-    <label class="ch${data[c.id]?' done':''}" data-id="${c.id}">
+  document.getElementById('checks').innerHTML=allChecks.map(c=>{
+    const streak=computeHabitStreak(c.id);
+    return`<label class="ch${data[c.id]?' done':''}" data-id="${c.id}">
       <input type="checkbox" ${data[c.id]?'checked':''}>
       <span class="chl">${c.l}</span>
       <span class="chio">${c.e}</span>
+      ${streak>0?`<span class="ch-streak${streak>7?' hot':''}">${streak}d</span>`:''}
       ${c.custom?`<button class="ch-del" data-key="${c.l.replace(/"/g,'&quot;')}" title="Remove">×</button>`:''}
-    </label>`).join('');
+    </label>`;}).join('');
 
   document.getElementById('checks').querySelectorAll('.ch').forEach(el=>{
     el.querySelector('input').addEventListener('change',e=>{
@@ -686,7 +722,7 @@ function renderToday(){
   });
   bindCursor();
 
-  const prof=PROFILE[curP];const now=new Date();const nm=now.getHours()*60+now.getMinutes();
+  const prof=getProfile(curP);const now=new Date();const nm=now.getHours()*60+now.getMinutes();
   let ni=-1;prof.blocks.forEach((b,i)=>{const[hh,mm]=b.t.split(':').map(Number);if(hh*60+mm<=nm)ni=i;});
   document.getElementById('tlblocks').innerHTML=prof.blocks.slice(0,12).map((b,i)=>`
     <div class="tlb ${i<ni?'done':i===ni?'now':''}">
@@ -697,13 +733,36 @@ function renderToday(){
 /* ════════════════════════════════════════════════
    RENDER: SCHEDULE
    ════════════════════════════════════════════════ */
+function getProfile(p){return ls('schedule:'+p,PROFILE[p]);}
+
 function renderSched(){
-  document.getElementById('ptxt').textContent=PROFILE[curP].name;
-  document.getElementById('bgrid').innerHTML=PROFILE[curP].blocks.map(b=>`
+  const prof=getProfile(curP);
+  document.getElementById('ptxt').textContent=prof.name;
+  document.getElementById('bgrid').innerHTML=prof.blocks.map((b,i)=>`
     <div class="blk bt-${b.tag}">
       <div class="btm">${b.t}</div><div class="bna">${b.n}</div><div class="bde">${b.d}</div>
       ${b.a!=='—'?`<div class="bal">${b.a}</div>`:''}
+      <button class="blk-edit-btn" data-i="${i}" title="Edit block">✎</button>
     </div>`).join('');
+  document.querySelectorAll('.blk-edit-btn').forEach(btn=>{
+    btn.addEventListener('click',e=>{e.stopPropagation();openSchedModal(+btn.dataset.i);});
+  });
+}
+
+function openSchedModal(blockIdx){
+  pendingSchedBlockIdx=blockIdx;
+  const prof=getProfile(curP);
+  const isNew=blockIdx===-1;
+  document.getElementById('schedModalTitle').textContent=isNew?'New Block':'Edit Block';
+  document.getElementById('deleteSchedBlockBtn').style.display=isNew?'none':'';
+  const b=isNew?{t:'',n:'',tag:'self',d:'',a:'—'}:prof.blocks[blockIdx];
+  document.getElementById('seBkTime').value=b.t||'';
+  document.getElementById('seBkName').value=b.n||'';
+  document.getElementById('seBkTag').value=b.tag||'self';
+  document.getElementById('seBkDesc').value=b.d||'';
+  document.getElementById('seBkAlarm').value=b.a||'—';
+  document.getElementById('schedMsg').textContent='';
+  document.getElementById('schedModal').classList.add('show');
 }
 
 /* ════════════════════════════════════════════════
@@ -984,7 +1043,10 @@ function renderProgress(){
   document.getElementById('bstk').textContent=best;
   document.getElementById('ttasks').textContent=total;
   document.getElementById('avgr').textContent=avg+'%';
+  const jStreak=computeJournalStreak();
+  const jsEl=document.getElementById('journalStreak');if(jsEl)jsEl.textContent=jStreak;
   renderRadar();renderBarChart(rates);renderWeightChart();renderPR();renderHeat();renderWeeklySummary(streak,rates,avg,allItems);
+  renderMeasurements();renderHabitStreaks();
 }
 
 function renderRadar(){
@@ -1048,20 +1110,28 @@ function renderWeightChart(){
 
 function renderPR(){
   const el=document.getElementById('prgrid');if(!el)return;
-  el.innerHTML=PR_LIFTS.map(l=>`
+  const customs=ls('custom_prs',[]);
+  el.innerHTML=getAllPRLifts().map(l=>`
     <div class="pri"><div class="prl">${l}</div>
       <input class="pr-inp" value="${(ls('pr:'+l,'—')||'—').toString().replace(/"/g,'&quot;')}" placeholder="—" data-lift="${l}">
-      <div class="pru">kg</div>
+      <div class="pru" style="display:flex;align-items:center;gap:4px;">kg${customs.includes(l)?`<button class="pr-del" data-lift="${l.replace(/"/g,'&quot;')}" title="Remove">×</button>`:''}</div>
     </div>`).join('');
   el.querySelectorAll('.pr-inp').forEach(inp=>{
     inp.addEventListener('change',()=>{lsSet('pr:'+inp.dataset.lift,inp.value);toast('PR saved!');});
+  });
+  el.querySelectorAll('.pr-del').forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      e.stopPropagation();
+      const arr=ls('custom_prs',[]).filter(l=>l!==btn.dataset.lift);
+      lsSet('custom_prs',arr);renderPR();toast('Lift removed.');
+    });
   });
 }
 
 function renderHeat(){
   const hg=document.getElementById('hgrid');if(!hg)return;
   hg.innerHTML='';
-  for(let i=13;i>=0;i--){
+  for(let i=analyticsRange-1;i>=0;i--){
     const d=new Date();d.setDate(d.getDate()-i);
     const k=d.toISOString().slice(0,10);
     const data=ls('daily:'+k,{});
@@ -1071,6 +1141,49 @@ function renderHeat(){
     if(i===0)c.dataset.t='1';c.title=`${d.toLocaleDateString('en-US',{month:'short',day:'numeric'})}: ${cnt} items`;
     hg.appendChild(c);
   }
+}
+
+function renderMeasurements(){
+  const el=document.getElementById('measGrid');if(!el)return;
+  const fields=[{id:'chest',l:'Chest'},{id:'waist',l:'Waist'},{id:'hips',l:'Hips'},{id:'larm',l:'L Arm'},{id:'rarm',l:'R Arm'},{id:'bf',l:'Body Fat'}];
+  const latest=getLastMeasDate();
+  const prev=ls('measurements:'+latest,{});
+  const prevDates=[];
+  for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith('measurements:')&&k.slice(13)!==latest)prevDates.push(k.slice(13));}
+  prevDates.sort().reverse();
+  const prevPrev=prevDates.length?ls('measurements:'+prevDates[0],{}):null;
+  if(!latest){el.innerHTML='<div style="color:var(--t2);font-size:13px;grid-column:1/-1;">No measurements logged yet.</div>';return;}
+  el.innerHTML=fields.map(f=>{
+    const v=prev[f.id];const pp=prevPrev?prevPrev[f.id]:null;
+    let delta='';
+    if(v&&pp){const d=(v-pp);const sign=d>0?'+':'';delta=`<div class="meas-delta ${d>0?'up':'dn'}">${sign}${d.toFixed(1)}</div>`;}
+    return`<div class="meas-item"><div class="meas-lbl">${f.l}</div><div class="meas-val">${v||'—'}</div>${delta}</div>`;
+  }).join('');
+}
+
+function renderHabitStreaks(){
+  const el=document.getElementById('habitStreaksGrid');if(!el)return;
+  const habits=getAllChecks();
+  if(!habits.length){el.innerHTML='<div style="color:var(--t2);font-size:13px;">Add habits to see streaks.</div>';return;}
+  const items=habits.map(h=>({l:h.l,streak:computeHabitStreak(h.id)}))
+    .sort((a,b)=>b.streak-a.streak);
+  el.innerHTML=items.map(h=>`
+    <div class="hs-item">
+      <span class="hs-lbl">${h.l}</span>
+      <span class="hs-streak${h.streak>7?' hot':''}">${h.streak>0?h.streak+'d':'—'}</span>
+    </div>`).join('');
+}
+
+function renderAnEnergySpark(){
+  const el=document.getElementById('anEnergySpark');if(!el)return;
+  const bars=[];
+  for(let i=29;i>=0;i--){
+    const d=new Date();d.setDate(d.getDate()-i);
+    const j=ls('journal:'+d.toISOString().slice(0,10),{});
+    bars.push(j.energy||0);
+  }
+  const colors=['rgba(255,255,255,.1)','rgba(255,180,71,.5)','rgba(255,180,71,.7)','rgba(200,255,56,.5)','rgba(200,255,56,.8)','rgba(200,255,56,1)'];
+  el.innerHTML=bars.map(v=>`<div class="an-e-bar" style="height:${Math.max(v*9,3)}px;background:${colors[v]||colors[0]};" title="Energy: ${v||'—'}/5"></div>`).join('');
 }
 
 function renderWeeklySummary(streak,rates,avg,allItems){
@@ -1102,7 +1215,7 @@ function dayCompletion(dateKey){
 }
 
 function renderAnalytics(){
-  renderAnTop();renderAnCal();renderAnCat();renderAnSpark();renderAnInsights();
+  renderAnTop();renderAnCal();renderAnCat();renderAnSpark();renderAnEnergySpark();renderAnInsights();
 }
 
 function renderAnTop(){
@@ -1471,11 +1584,6 @@ function init(){
   });
   document.getElementById('newcheck').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('addcheck').click();});
 
-  // Today's Focus
-  const fi=document.getElementById('focusInp');
-  fi.value=ls('focus:'+today,'');
-  fi.addEventListener('change',()=>{lsSet('focus:'+today,fi.value);toast('Focus saved.');});
-
   // Weight log
   document.getElementById('wtsv').addEventListener('click',()=>{
     const v=parseFloat(document.getElementById('wtinp').value);
@@ -1603,17 +1711,57 @@ function init(){
   });
 
   // ── Analytics buttons ──
+  document.getElementById('anRange')?.addEventListener('click', e => {
+    const btn = e.target.closest('.an-range-btn');
+    if (!btn) return;
+    analyticsRange = parseInt(btn.dataset.days);
+    document.querySelectorAll('.an-range-btn').forEach(b => b.classList.toggle('active', b === btn));
+    renderAnalytics();
+  });
   document.getElementById('anCalPrev').addEventListener('click',()=>{calMonth--;if(calMonth<0){calMonth=11;calYear--;}renderAnCal();});
   document.getElementById('anCalNext').addEventListener('click',()=>{calMonth++;if(calMonth>11){calMonth=0;calYear++;}renderAnCal();});
-  document.getElementById('exCSV').addEventListener('click',exportCSV);
-  const exJSON=document.getElementById('exJSON');
-  if(exJSON){exJSON.addEventListener('click',()=>{
-    const data=collectSyncData();
-    const blob=new Blob([JSON.stringify({exportedAt:new Date().toISOString(),user:fbUser?fbUser.email:null,data},null,2)],{type:'application/json'});
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='life-os-backup.json';a.click();
-    toast('JSON exported.');
-  });}
-  document.getElementById('exShare').addEventListener('click',copySummary);
+  document.getElementById('exCSV')?.addEventListener('click', () => {
+    const days = analyticsRange;
+    const habits = ls('custom_checks', []).map(h => h.n || h);
+    const rows = [['Date','Completion%',...habits]];
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(); d.setDate(d.getDate() - i);
+      const date = d.toISOString().slice(0,10);
+      const log = ls('daily:'+date, {});
+      const done = habits.filter(h => log[h] || log[h.id]).length;
+      const pct = habits.length ? Math.round(done/habits.length*100) : 0;
+      rows.push([date, pct, ...habits.map(h => (log[h] || log[h.id]) ? 1 : 0)]);
+    }
+    const csv = rows.map(r => r.join(',')).join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
+    a.download = 'life-os-'+today+'.csv';
+    a.click();
+    toast('CSV exported');
+  });
+  document.getElementById('exJSON')?.addEventListener('click', () => {
+    const data = collectSyncData ? collectSyncData() : {};
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(data,null,2)], {type:'application/json'}));
+    a.download = 'life-os-'+today+'.json';
+    a.click();
+    toast('JSON exported');
+  });
+  document.getElementById('exShare')?.addEventListener('click', async () => {
+    const days = analyticsRange;
+    let done = 0, total = 0;
+    for (let i = 0; i < days; i++) {
+      const d = new Date(); d.setDate(d.getDate() - i);
+      const log = ls('daily:'+d.toISOString().slice(0,10), {});
+      const habits = ls('custom_checks', []);
+      total += habits.length;
+      done += habits.filter(h => log[h] || log[h.id]).length;
+    }
+    const pct = total ? Math.round(done/total*100) : 0;
+    const txt = `Beyond Standard — Last ${days} days: ${pct}% habit completion 🔥`;
+    try { await navigator.clipboard.writeText(txt); toast('Copied to clipboard'); }
+    catch { toast(txt); }
+  });
   const exBackup=document.getElementById('exBackup');
   if(exBackup){exBackup.addEventListener('click',()=>{
     if(!fbUser){document.getElementById('authModal').classList.add('show');return;}
@@ -1684,6 +1832,101 @@ function init(){
       toast('Custom meal added!');
     });
   }
+
+  // ── Journal ──
+  const jData=ls('journal:'+today,{});
+  const jWin=document.getElementById('journalWin');
+  const jMiss=document.getElementById('journalMiss');
+  if(jWin)jWin.value=jData.win||'';
+  if(jMiss)jMiss.value=jData.miss||'';
+  const saveJournal=()=>{
+    const d=ls('journal:'+today,{});
+    if(jWin)d.win=jWin.value;
+    if(jMiss)d.miss=jMiss.value;
+    const fi2=document.getElementById('focusInp');
+    if(fi2)d.focus=fi2.value;
+    lsSet('journal:'+today,d);
+  };
+  if(jWin)jWin.addEventListener('change',saveJournal);
+  if(jMiss)jMiss.addEventListener('change',saveJournal);
+  const fi=document.getElementById('focusInp');
+  if(fi){fi.value=jData.focus||ls('focus:'+today,'')||'';fi.addEventListener('change',()=>{lsSet('focus:'+today,fi.value);saveJournal();});}
+  const edots=document.getElementById('energyDots');
+  if(edots){
+    for(let i=1;i<=5;i++){
+      const btn=document.createElement('button');
+      btn.className='edot'+(jData.energy===i?' sel':'');
+      btn.textContent=i;
+      btn.addEventListener('click',()=>{
+        const d=ls('journal:'+today,{});d.energy=i;lsSet('journal:'+today,d);
+        edots.querySelectorAll('.edot').forEach((b,bi)=>b.classList.toggle('sel',bi+1===i));
+        toast('Energy: '+i+'/5');
+      });
+      edots.appendChild(btn);
+    }
+  }
+
+  // ── Body Measurements ──
+  document.getElementById('logMeasBtn')?.addEventListener('click',()=>{
+    document.getElementById('measForm').classList.toggle('open');
+  });
+  document.getElementById('saveMeasBtn')?.addEventListener('click',()=>{
+    const fields={chest:'mChest',waist:'mWaist',hips:'mHips',larm:'mLArm',rarm:'mRArm',bf:'mBF'};
+    const data={};
+    Object.entries(fields).forEach(([k,id])=>{
+      const v=parseFloat(document.getElementById(id)?.value);
+      if(!isNaN(v)&&v>0)data[k]=v;
+    });
+    if(!Object.keys(data).length){toast('Enter at least one measurement.');return;}
+    lsSet('measurements:'+today,data);
+    document.getElementById('measForm').classList.remove('open');
+    renderMeasurements();
+    toast('Measurements saved!');
+  });
+
+  // ── Custom PR Lifts ──
+  document.getElementById('addPRLiftBtn')?.addEventListener('click',()=>{
+    const inp=document.getElementById('newPRLift');
+    const name=inp.value.trim();
+    if(!name){toast('Enter a lift name.');return;}
+    const arr=ls('custom_prs',[]);
+    if(arr.includes(name)||PR_LIFTS_DEFAULT.includes(name)){toast('Already exists.');return;}
+    arr.push(name);lsSet('custom_prs',arr);
+    inp.value='';renderPR();toast('Lift added!');
+  });
+  document.getElementById('newPRLift')?.addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('addPRLiftBtn')?.click();});
+
+  // ── Schedule Edit ──
+  const closeSchedModal=()=>document.getElementById('schedModal').classList.remove('show');
+  document.getElementById('schedModalClose')?.addEventListener('click',closeSchedModal);
+  document.getElementById('cancelSchedBlockBtn')?.addEventListener('click',closeSchedModal);
+  document.getElementById('schedModal')?.addEventListener('click',e=>{if(e.target===document.getElementById('schedModal'))closeSchedModal();});
+  document.getElementById('addBlockBtn')?.addEventListener('click',()=>openSchedModal(-1));
+  document.getElementById('resetSchedBtn')?.addEventListener('click',()=>{
+    if(!confirm('Reset schedule to default? Your custom blocks will be lost.'))return;
+    lsRm('schedule:'+curP);renderSched();toast('Schedule reset.');
+  });
+  document.getElementById('saveSchedBlockBtn')?.addEventListener('click',()=>{
+    const t=document.getElementById('seBkTime').value.trim();
+    const n=document.getElementById('seBkName').value.trim();
+    if(!t||!n){document.getElementById('schedMsg').textContent='Time and name required.';return;}
+    if(!/^\d{2}:\d{2}$/.test(t)){document.getElementById('schedMsg').textContent='Use HH:MM format.';return;}
+    const block={t,n,tag:document.getElementById('seBkTag').value,d:document.getElementById('seBkDesc').value.trim(),a:document.getElementById('seBkAlarm').value.trim()||'—'};
+    const prof=JSON.parse(JSON.stringify(getProfile(curP)));
+    if(pendingSchedBlockIdx===-1)prof.blocks.push(block);
+    else prof.blocks[pendingSchedBlockIdx]=block;
+    prof.blocks.sort((a,b)=>a.t.localeCompare(b.t));
+    lsSet('schedule:'+curP,prof);
+    closeSchedModal();renderSched();toast('Block saved!');
+  });
+  document.getElementById('deleteSchedBlockBtn')?.addEventListener('click',()=>{
+    if(pendingSchedBlockIdx===-1)return;
+    if(!confirm('Delete this block?'))return;
+    const prof=JSON.parse(JSON.stringify(getProfile(curP)));
+    prof.blocks.splice(pendingSchedBlockIdx,1);
+    lsSet('schedule:'+curP,prof);
+    closeSchedModal();renderSched();toast('Block deleted.');
+  });
 
   // ── Renders ──
   renderToday();renderSched();renderTraining();renderNutrition();renderOutfitPlanner();renderBm();
