@@ -644,6 +644,22 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
 .sched-field input:focus,.sched-field select:focus,.sched-field textarea:focus{border-color:var(--lime);}
 .sched-field textarea{resize:vertical;min-height:60px;}
 .sched-modal-actions{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;}
+/* ── HABIT META: cooldown, XP, category, paused ── */
+.ch.locked{opacity:.7;background:rgba(255,180,71,.04);border-color:rgba(255,180,71,.15);}
+.ch.locked .chl{color:var(--t2);}
+.ch.paused{opacity:.65;background:rgba(255,180,71,.03);}
+.ch-lock{font-size:14px;width:20px;text-align:center;flex-shrink:0;}
+.ch-xp{font-size:10px;font-weight:800;color:var(--lime);letter-spacing:1px;flex-shrink:0;opacity:.7;}
+.ch-cd{margin-left:auto;font-size:10px;font-weight:700;color:var(--gold);letter-spacing:0;flex-shrink:0;font-variant-numeric:tabular-nums;background:rgba(255,180,71,.08);padding:2px 7px;border-radius:99px;border:1px solid rgba(255,180,71,.18);}
+.ch-cfg{background:transparent;border:none;color:var(--t3);cursor:pointer;padding:0 4px;font-size:14px;font-family:inherit;line-height:1;transition:color .2s;}
+.ch-cfg:hover{color:var(--lime);}
+.ch-streak{margin-left:auto;}
+.ch-cd ~ .ch-cfg{margin-left:0;}
+.ch-del{margin-left:0;}
+/* ── XP HUD ── */
+.xp-hud{display:flex;align-items:center;gap:8px;margin-top:8px;padding:8px 12px;background:rgba(200,255,56,.04);border:1px solid rgba(200,255,56,.12);border-radius:99px;font-size:11px;font-weight:700;color:var(--lime);}
+.xp-hud-bar{flex:1;height:4px;background:rgba(200,255,56,.08);border-radius:99px;overflow:hidden;}
+.xp-hud-fill{height:100%;background:var(--lime);transition:width .4s var(--eo);}
 /* ── HABIT SUGGESTIONS ── */
 .habit-sugg{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:10px;}
 .hs-sg-lbl{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-right:4px;}
@@ -720,6 +736,11 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
 
     <!-- Sign in area -->
     <div id="fbSignInArea">
+      <button class="auth-btn google" id="fbGoogleBtn" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;color:#222;border:none;margin-bottom:10px;">
+        <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3l5.7-5.7C34.6 6.1 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.3-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.1l6.6 4.8C14.6 15.1 18.9 12 24 12c3.1 0 5.8 1.2 7.9 3l5.7-5.7C34.6 6.1 29.6 4 24 4 16 4 9 8.6 6.3 14.1z"/><path fill="#4CAF50" d="M24 44c5.5 0 10.4-2.1 14.2-5.5l-6.6-5.4c-2 1.4-4.6 2.4-7.6 2.4-5.3 0-9.7-3.3-11.3-8l-6.5 5C9 39.4 16 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.3 5.7l6.6 5.4C40.3 36.1 44 30.6 44 24c0-1.3-.1-2.3-.4-3.5z"/></svg>
+        Continue with Google
+      </button>
+      <div style="display:flex;align-items:center;gap:8px;margin:10px 0;color:var(--t3);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;"><div style="flex:1;height:1px;background:var(--bd);"></div>or email<div style="flex:1;height:1px;background:var(--bd);"></div></div>
       <input class="auth-inp" id="fbEmailInp" type="email" placeholder="your@email.com" autocomplete="email"/>
       <input class="auth-inp" id="fbPassInp" type="password" placeholder="Password (min 6 chars)" autocomplete="current-password" style="margin-top:8px;"/>
       <div class="auth-actions" style="margin-top:12px;">
@@ -862,6 +883,11 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
         </div>
         <div class="ch-side">
           <div class="ch-hd"><h3>Non-Negotiables</h3><div class="ch-score" id="cscore">0%</div></div>
+          <div class="xp-hud" id="xpHud" style="display:none;">
+            <span>⚡ XP</span>
+            <span id="xpEarned">0</span>/<span id="xpTotal">0</span>
+            <div class="xp-hud-bar"><div class="xp-hud-fill" id="xpFill" style="width:0%"></div></div>
+          </div>
           <div class="checks" id="checks"></div>
           <div class="add-check">
             <input class="ac-inp" id="newcheck" placeholder="Add new habit..." maxlength="60"/>
@@ -1298,6 +1324,51 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
   <button class="fab-act" data-act="meas">📏 Log Measurements</button>
 </div>
 
+<div class="sched-modal" id="habitEditModal">
+  <div class="sched-modal-card">
+    <div class="sched-modal-hd">
+      <h3 id="habitEditTitle">Habit Settings</h3>
+      <button class="sp-close" id="habitEditClose">×</button>
+    </div>
+    <div class="sched-field"><label>Category</label>
+      <select id="heCategory">
+        <option value="health">Health</option>
+        <option value="mind">Mind</option>
+        <option value="body">Body</option>
+        <option value="social">Social</option>
+        <option value="work">Work</option>
+      </select>
+    </div>
+    <div class="sched-field"><label>Difficulty / XP (1–5)</label>
+      <select id="heXP">
+        <option value="1">1 — Easy (water, vitamins)</option>
+        <option value="2">2 — Light (skincare, journal)</option>
+        <option value="3">3 — Moderate (gym, run)</option>
+        <option value="4">4 — Hard (long workout)</option>
+        <option value="5">5 — Elite (race, exam)</option>
+      </select>
+    </div>
+    <div class="sched-field"><label>Cooldown (hours between completions)</label>
+      <input id="heCooldown" type="number" min="0" max="720" step="0.5" placeholder="0 = no cooldown">
+      <div style="font-size:11px;color:var(--t2);margin-top:4px;line-height:1.5;">
+        Set 24 for "once per day", 168 for "once per week", 0 for no limit. Useful for things you'd otherwise overdo (e.g. badminton — say no to extra sessions).
+      </div>
+    </div>
+    <div class="sched-field"><label>Status</label>
+      <div style="font-size:12px;line-height:1.6;">
+        <div>Last done: <strong id="heLastDone">Never</strong></div>
+        <div id="heCdStatus" style="color:var(--lime);font-weight:700;margin-top:2px;">Available now</div>
+      </div>
+    </div>
+    <div class="sched-modal-actions">
+      <button class="auth-btn" id="heSaveBtn">Save</button>
+      <button class="auth-btn ghost" id="hePauseBtn">⏸ Skip today</button>
+      <button class="auth-btn ghost" id="heResetCdBtn" style="color:var(--gold);border-color:rgba(255,180,71,.3);">Reset cooldown</button>
+      <button class="auth-btn ghost" id="heCancelBtn">Cancel</button>
+    </div>
+    <div class="auth-msg" id="heMsg"></div>
+  </div>
+</div>
 <div class="sched-modal" id="schedModal">
   <div class="sched-modal-card">
     <div class="sched-modal-hd">

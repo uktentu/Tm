@@ -217,8 +217,8 @@ const lsRm=k=>{try{localStorage.removeItem(k);}catch{}};
 const today=new Date().toISOString().slice(0,10);
 
 /* Keys that we sync (everything app-data, NOT auth/device-local) */
-const SYNC_KEY_PREFIXES=['daily:','water:','wt:','focus:','pr:','outfit:','journal:','session:','measurements:','schedule:'];
-const SYNC_KEYS_EXACT=['custom_checks','bookmarks','profile','custom_meals','macro_targets','custom_prs'];
+const SYNC_KEY_PREFIXES=['daily:','water:','wt:','focus:','pr:','outfit:','journal:','session:','measurements:','schedule:','habit_meta:','habit_last:','habit_paused:','goal:','sleep:','steps:','gratitude:','review:','meal_template:','photo:'];
+const SYNC_KEYS_EXACT=['custom_checks','bookmarks','profile','custom_meals','macro_targets','custom_prs','custom_dashboard','habit_categories','eating_window'];
 const LOCAL_ONLY=['gh_pat','gh_gist_id','gh_user','gh_avatar','last_synced','splash:','pwa_dismissed','fb_config','fb_uid','fb_email'];
 
 function collectSyncData(){
@@ -290,6 +290,23 @@ function fbAttachListener(){
     rerenderAll();
   });
   fbListenerOff=()=>ref.off('value',cb);
+}
+
+async function handleGoogleSignIn(){
+  const msg=document.getElementById('authMsg');
+  if(!fbAuth){
+    if(!localStorage.getItem('fb_config')){msg.textContent='Paste your Firebase config first.';msg.className='auth-msg err';document.getElementById('fbConfigArea').style.display='block';return;}
+    return;
+  }
+  msg.textContent='Opening Google sign-in…';msg.className='auth-msg';
+  try{
+    const provider=new firebase.auth.GoogleAuthProvider();
+    await fbAuth.signInWithPopup(provider);
+    setTimeout(()=>{document.getElementById('authModal').classList.remove('show');toast('Welcome!');},600);
+  }catch(e){
+    msg.textContent='✗ '+(e.code==='auth/popup-blocked'?'Popup blocked — allow popups and retry.':e.message);
+    msg.className='auth-msg err';
+  }
 }
 
 async function handleFbSignIn(email,pass,create=false){
@@ -597,12 +614,87 @@ function getAllChecks(){
 
 function getCustomMeals(){return ls('custom_meals',[]);}
 
+/* ── HABIT METADATA: category, XP, cooldown, pause ── */
+const HABIT_CATS={
+  health:{l:'Health',c:'var(--lime)'},
+  mind:{l:'Mind',c:'var(--violet)'},
+  body:{l:'Body',c:'var(--teal)'},
+  social:{l:'Social',c:'var(--gold)'},
+  work:{l:'Work',c:'var(--blue)'},
+};
+const HABIT_DEFAULTS={
+  water:{cat:'health',xp:1,cooldown:0},
+  protein:{cat:'health',xp:2,cooldown:0},
+  creatine:{cat:'health',xp:1,cooldown:0},
+  badminton:{cat:'body',xp:3,cooldown:0},
+  gym:{cat:'body',xp:3,cooldown:0},
+  skincare:{cat:'health',xp:1,cooldown:0},
+  journal:{cat:'mind',xp:2,cooldown:0},
+  sleep:{cat:'health',xp:2,cooldown:0},
+  noPhone:{cat:'mind',xp:1,cooldown:0},
+  noScreen:{cat:'mind',xp:1,cooldown:0},
+};
+function getHabitMeta(habitId){
+  const def=HABIT_DEFAULTS[habitId]||{cat:'health',xp:1,cooldown:0};
+  return {...def,...ls('habit_meta:'+habitId,{})};
+}
+function setHabitMeta(habitId,meta){lsSet('habit_meta:'+habitId,meta);}
+function getHabitLast(habitId){return ls('habit_last:'+habitId,null);}
+function setHabitLast(habitId,ts){lsSet('habit_last:'+habitId,ts);}
+function isHabitPaused(habitId,date){return ls('habit_paused:'+habitId+':'+date,false);}
+function setHabitPaused(habitId,date,v){if(v)lsSet('habit_paused:'+habitId+':'+date,true);else lsRm('habit_paused:'+habitId+':'+date);}
+function getHabitCooldownRemaining(habitId){
+  const meta=getHabitMeta(habitId);
+  if(!meta.cooldown||meta.cooldown<=0)return 0;
+  const last=getHabitLast(habitId);
+  if(!last)return 0;
+  const elapsed=(Date.now()-new Date(last).getTime())/3600000;
+  return Math.max(0,meta.cooldown-elapsed);
+}
+function formatCooldown(hours){
+  if(hours<=0)return '';
+  if(hours>=24){const d=Math.floor(hours/24);const h=Math.round(hours%24);return d>1?d+'d '+h+'h':d+'d '+h+'h';}
+  if(hours>=1){const h=Math.floor(hours);const m=Math.round((hours-h)*60);return h+'h '+m+'m';}
+  return Math.max(1,Math.ceil(hours*60))+'m';
+}
+function getDailyXP(date){
+  const data=ls('daily:'+date,{});
+  let earned=0,total=0;
+  getAllChecks().forEach(c=>{
+    const meta=getHabitMeta(c.id);
+    total+=meta.xp;
+    if(data[c.id])earned+=meta.xp;
+  });
+  return {earned,total};
+}
+
+let pendingHabitEditId=null;
+function openHabitEdit(habitId){
+  pendingHabitEditId=habitId;
+  const habit=getAllChecks().find(c=>c.id===habitId);
+  if(!habit)return;
+  const meta=getHabitMeta(habitId);
+  document.getElementById('habitEditTitle').textContent='Settings — '+habit.l;
+  document.getElementById('heCategory').value=meta.cat;
+  document.getElementById('heXP').value=meta.xp;
+  document.getElementById('heCooldown').value=meta.cooldown||0;
+  const lastTs=getHabitLast(habitId);
+  document.getElementById('heLastDone').textContent=lastTs?new Date(lastTs).toLocaleString():'Never';
+  const cdRem=getHabitCooldownRemaining(habitId);
+  document.getElementById('heCdStatus').textContent=cdRem>0?'On cooldown — '+formatCooldown(cdRem)+' remaining':'Available now';
+  document.getElementById('heCdStatus').style.color=cdRem>0?'var(--gold)':'var(--lime)';
+  document.getElementById('hePauseBtn').textContent=isHabitPaused(habitId,today)?'Resume today':'⏸ Skip today (no streak break)';
+  document.getElementById('habitEditModal').classList.add('show');
+}
+
 function computeHabitStreak(habitId){
   let streak=0;
   for(let i=0;i<30;i++){
     const d=new Date();d.setDate(d.getDate()-i);
-    const data=ls('daily:'+d.toISOString().slice(0,10),{});
-    if(!data[habitId])break;
+    const ds=d.toISOString().slice(0,10);
+    const data=ls('daily:'+ds,{});
+    const paused=isHabitPaused(habitId,ds);
+    if(!data[habitId]&&!paused)break;
     streak++;
   }
   return streak;
@@ -664,6 +756,14 @@ function renderToday(){
   document.getElementById('dpBar').style.width=sc+'%';
   document.getElementById('dpChecks').textContent=`${cd}/${ct}`;
   document.getElementById('dpMeals').textContent=`${md}/${mt}`;
+  const xp=getDailyXP(today);
+  const xpHud=document.getElementById('xpHud');
+  if(xpHud){
+    xpHud.style.display=xp.total>ct?'flex':'none';
+    document.getElementById('xpEarned').textContent=xp.earned;
+    document.getElementById('xpTotal').textContent=xp.total;
+    document.getElementById('xpFill').style.width=(xp.total?(xp.earned/xp.total*100):0)+'%';
+  }
 
   let streak=0;
   for(let i=0;i<365;i++){
@@ -694,25 +794,42 @@ function renderToday(){
 
   document.getElementById('checks').innerHTML=allChecks.map(c=>{
     const streak=computeHabitStreak(c.id);
-    return`<label class="ch${data[c.id]?' done':''}" data-id="${c.id}">
-      <input type="checkbox" ${data[c.id]?'checked':''}>
-      <span class="chl">${c.l}</span>
+    const meta=getHabitMeta(c.id);
+    const cdRem=getHabitCooldownRemaining(c.id);
+    const isLocked=cdRem>0&&!data[c.id];
+    const paused=isHabitPaused(c.id,today);
+    const cat=HABIT_CATS[meta.cat]||HABIT_CATS.health;
+    return`<label class="ch${data[c.id]?' done':''}${isLocked?' locked':''}${paused?' paused':''}" data-id="${c.id}" style="border-left:3px solid ${cat.c};">
+      ${isLocked?'<span class="ch-lock" title="On cooldown">🔒</span>':`<input type="checkbox" ${data[c.id]?'checked':''}${isLocked?' disabled':''}>`}
+      <span class="chl">${c.l}${paused?' <span style="color:var(--gold);font-size:10px;">⏸ paused</span>':''}</span>
       <span class="chio">${c.e}</span>
-      ${streak>0?`<span class="ch-streak${streak>7?' hot':''}">${streak}d</span>`:''}
+      <span class="ch-xp" title="${meta.xp} XP">${'•'.repeat(meta.xp)}</span>
+      ${isLocked?`<span class="ch-cd" data-id="${c.id}" data-cooldown="${meta.cooldown}">${formatCooldown(cdRem)}</span>`:streak>0?`<span class="ch-streak${streak>7?' hot':''}">${streak}d</span>`:''}
+      <button class="ch-cfg" data-id="${c.id}" title="Settings">⋯</button>
       ${c.custom?`<button class="ch-del" data-key="${c.l.replace(/"/g,'&quot;')}" title="Remove">×</button>`:''}
     </label>`;}).join('');
 
   document.getElementById('checks').querySelectorAll('.ch').forEach(el=>{
-    el.querySelector('input').addEventListener('change',e=>{
-      const d=ls('daily:'+today,{});d[el.dataset.id]=e.target.checked;lsSet('daily:'+today,d);
-      el.classList.toggle('done',e.target.checked);
-      renderToday();
-      if(curSec===3)renderNutrition();
-      if(e.target.checked){
-        try{navigator.vibrate&&navigator.vibrate(15);}catch{}
-        toast(['Stack the win.','That is a Toji move.','Discipline = freedom.','One more brick laid.','Future you thanks you.'][Math.floor(Math.random()*5)]);
-      }
-    });
+    const inp=el.querySelector('input[type="checkbox"]');
+    if(inp){
+      inp.addEventListener('change',e=>{
+        const d=ls('daily:'+today,{});d[el.dataset.id]=e.target.checked;lsSet('daily:'+today,d);
+        if(e.target.checked){
+          setHabitLast(el.dataset.id,new Date().toISOString());
+          setHabitPaused(el.dataset.id,today,false);
+        }
+        el.classList.toggle('done',e.target.checked);
+        renderToday();
+        if(curSec===3)renderNutrition();
+        if(e.target.checked){
+          try{navigator.vibrate&&navigator.vibrate(15);}catch{}
+          const xp=getHabitMeta(el.dataset.id).xp;
+          toast(['Stack the win.','That is a Toji move.','Discipline = freedom.','One more brick laid.','Future you thanks you.'][Math.floor(Math.random()*5)]+(xp>1?` +${xp} XP`:''));
+        }
+      });
+    }
+    const cfgBtn=el.querySelector('.ch-cfg');
+    if(cfgBtn){cfgBtn.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();openHabitEdit(cfgBtn.dataset.id);});}
     const delBtn=el.querySelector('.ch-del');
     if(delBtn){
       delBtn.addEventListener('click',e=>{
@@ -1637,6 +1754,44 @@ function init(){
       document.getElementById('authModal').classList.remove('show');
     });
   }
+  document.getElementById('fbGoogleBtn')?.addEventListener('click',handleGoogleSignIn);
+
+  // ── Habit edit modal ──
+  const habitEditModal=document.getElementById('habitEditModal');
+  const closeHabitEdit=()=>habitEditModal.classList.remove('show');
+  document.getElementById('habitEditClose')?.addEventListener('click',closeHabitEdit);
+  document.getElementById('heCancelBtn')?.addEventListener('click',closeHabitEdit);
+  habitEditModal?.addEventListener('click',e=>{if(e.target===habitEditModal)closeHabitEdit();});
+  document.getElementById('heSaveBtn')?.addEventListener('click',()=>{
+    if(!pendingHabitEditId)return;
+    const cat=document.getElementById('heCategory').value;
+    const xp=Math.max(1,Math.min(5,parseInt(document.getElementById('heXP').value)||1));
+    const cooldown=Math.max(0,parseFloat(document.getElementById('heCooldown').value)||0);
+    setHabitMeta(pendingHabitEditId,{cat,xp,cooldown});
+    closeHabitEdit();renderToday();toast('Habit settings saved.');
+  });
+  document.getElementById('hePauseBtn')?.addEventListener('click',()=>{
+    if(!pendingHabitEditId)return;
+    const cur=isHabitPaused(pendingHabitEditId,today);
+    setHabitPaused(pendingHabitEditId,today,!cur);
+    closeHabitEdit();renderToday();toast(cur?'Resumed.':'Skipped today — streak protected.');
+  });
+  document.getElementById('heResetCdBtn')?.addEventListener('click',()=>{
+    if(!pendingHabitEditId)return;
+    if(!confirm('Reset cooldown? Habit will be available immediately.'))return;
+    lsRm('habit_last:'+pendingHabitEditId);
+    closeHabitEdit();renderToday();toast('Cooldown reset.');
+  });
+
+  // ── Live cooldown tick: update countdowns every minute ──
+  setInterval(()=>{
+    if(curSec!==0)return;
+    document.querySelectorAll('.ch-cd[data-id]').forEach(el=>{
+      const rem=getHabitCooldownRemaining(el.dataset.id);
+      if(rem<=0){renderToday();return;}
+      el.textContent=formatCooldown(rem);
+    });
+  },60000);
   if(fbConfigBtn){
     fbConfigBtn.addEventListener('click',()=>{
       const area=document.getElementById('fbConfigArea');
