@@ -244,6 +244,16 @@ function applySyncData(data){
 /* ════════════════════════════════════════════════
    FIREBASE REALTIME DATABASE SYNC
    ════════════════════════════════════════════════ */
+const FB_DEFAULT_CONFIG={
+  apiKey:"AIzaSyByV3RCixtXCjgBxJis920jXOdyruOOv90",
+  authDomain:"life-os-f7f30.firebaseapp.com",
+  databaseURL:"https://life-os-f7f30-default-rtdb.firebaseio.com",
+  projectId:"life-os-f7f30",
+  storageBucket:"life-os-f7f30.firebasestorage.app",
+  messagingSenderId:"41897135537",
+  appId:"1:41897135537:web:eb8103ddc91c7b65cdc190",
+  measurementId:"G-Y6CEJDGH7K"
+};
 let fbApp=null,fbDb=null,fbAuth=null,fbUser=null,fbListenerOff=null;
 const FB_PATH=uid=>'users/'+uid+'/sync';
 
@@ -1579,12 +1589,18 @@ function bindCursor(){
 const MSGS={today:['Stack wins. Build momentum.','Start with water.','Check one thing.'],schedule:['Set these alarms tonight.'],training:['Mind-muscle. Every rep.','Track your lifts.'],nutrition:['Log each meal as you eat.','140 g protein today.'],style:["Plan tomorrow's fit now."],bookmarks:['Add your sheets here.'],progress:['Streaks compound daily.'],analytics:['Patterns over feelings.','The data does not lie.']};
 function moveOrb(){
   const o=document.getElementById('gorb'),b=document.getElementById('obbl');
+  if(!o||!b)return;
   const m=MSGS[SECS[curSec].id]||MSGS.today;
-  const x=Math.max(280,Math.min(window.innerWidth-100,280+Math.random()*(window.innerWidth-400)));
-  o.style.left=x+'px';b.textContent=m[Math.floor(Math.random()*m.length)];
-  setTimeout(()=>o.classList.add('sb'),2000);setTimeout(()=>o.classList.remove('sb'),5200);
+  b.textContent=m[Math.floor(Math.random()*m.length)];
+  o.classList.add('sb');
+  clearTimeout(moveOrb._t);
+  moveOrb._t=setTimeout(()=>o.classList.remove('sb'),3500);
 }
-setInterval(moveOrb,13000);
+setInterval(moveOrb,18000);
+document.addEventListener('DOMContentLoaded',()=>{
+  const g=document.getElementById('gorb');
+  if(g)g.addEventListener('click',()=>{g.classList.toggle('paused');moveOrb();});
+});
 
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),2400);}
 
@@ -2135,19 +2151,17 @@ function init(){
   renderToday();renderSched();renderTraining();renderNutrition();renderOutfitPlanner();renderBm();
   initTimer();setTimeout(bindCursor,300);setTimeout(moveOrb,2000);
 
-  // ── Firebase restore from stored config ──
+  // ── Firebase init: stored config (custom) OR embedded default ──
   const storedFbConfig=localStorage.getItem('fb_config');
+  let cfgUsed=null;
   if(storedFbConfig){
-    try{initFirebase(JSON.parse(storedFbConfig));}catch(e){console.warn('Firebase restore failed:',e);}
-  }else{
-    const area=document.getElementById('fbConfigArea');
-    if(area)area.style.display='block';
-    const signArea=document.getElementById('fbSignInArea');
-    if(signArea)signArea.style.display='none';
+    try{cfgUsed=JSON.parse(storedFbConfig);}catch(e){console.warn('Stored Firebase config invalid:',e);}
   }
+  if(!cfgUsed)cfgUsed=FB_DEFAULT_CONFIG;
+  try{initFirebase(cfgUsed);}catch(e){console.warn('Firebase init failed:',e);}
 
-  // ── First-time: show auth modal if no Firebase config and never dismissed ──
-  if(!storedFbConfig&&!ls('pwa_dismissed_auth',false)){
+  // ── First-time: show sign-in if not signed in and never dismissed ──
+  if(!localStorage.getItem('fb_uid')&&!ls('pwa_dismissed_auth',false)){
     setTimeout(()=>{document.getElementById('authModal').classList.add('show');},5500);
   }else{
     updateUserUI();
