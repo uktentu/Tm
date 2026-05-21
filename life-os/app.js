@@ -1,6 +1,6 @@
 /* ════════════════════════════════════════════════
-   BEYOND STANDARD — Life OS v6
-   PWA · Firebase Realtime Sync · Push Notifications
+   BEYOND STANDARD — Life OS
+   PWA · Firebase Live Sync · Sage Cat · Push Notifications
    ════════════════════════════════════════════════ */
 
 /* ── QUOTES ── */
@@ -219,7 +219,7 @@ const today=new Date().toISOString().slice(0,10);
 /* Keys that we sync (everything app-data, NOT auth/device-local) */
 const SYNC_KEY_PREFIXES=['daily:','water:','wt:','focus:','pr:','outfit:','journal:','session:','measurements:','schedule:','habit_meta:','habit_last:','habit_paused:','goal:','sleep:','steps:','gratitude:','review:','eating_window:'];
 const SYNC_KEYS_EXACT=['custom_checks','bookmarks','profile','custom_meals','macro_targets','custom_prs','custom_dashboard','habit_categories','water_goal','meal_templates'];
-const LOCAL_ONLY=['gh_pat','gh_gist_id','gh_user','gh_avatar','last_synced','splash:','pwa_dismissed','fb_config','fb_uid','fb_email','photo:','pwa_installed','pwa_dismissed_auth'];
+const LOCAL_ONLY=['last_synced','splash:','pwa_dismissed','fb_config','fb_uid','fb_email','photo:','pwa_installed','pwa_dismissed_auth'];
 
 function collectSyncData(){
   const out={};
@@ -857,6 +857,228 @@ function getProgressionSuggestion(exName,dayIdx,repRange){
   if(isNaN(r1)||isNaN(r2)||r1<top||r2<top)return null;
   return {weight:w1+2.5,prevWeight:w1};
 }
+
+/* ════════════════════════════════════════════════
+   DASHBOARD DETAILS MODAL
+   ════════════════════════════════════════════════ */
+function openDetails(type,arg){
+  const modal=document.getElementById('detailsModal');
+  const titleEl=document.getElementById('detailsTitle');
+  const bodyEl=document.getElementById('detailsBody');
+  if(!modal||!titleEl||!bodyEl)return;
+  const r=DETAIL_RENDERERS[type];
+  if(!r){bodyEl.innerHTML='<div class="dt-empty">No details available.</div>';titleEl.textContent='Details';}
+  else{titleEl.textContent=r.title(arg);bodyEl.innerHTML=r.render(arg);}
+  modal.classList.add('show');
+}
+function closeDetails(){document.getElementById('detailsModal')?.classList.remove('show');}
+
+function dtBarRow(label,val,max,color='lime'){
+  const pct=max>0?Math.min(100,Math.round((val/max)*100)):0;
+  return `<div class="dt-bar-row"><div class="dt-d">${label}</div><div class="dt-bar"><div class="dt-bar-fill ${color}" style="width:${pct}%"></div></div><div class="dt-v">${val}</div></div>`;
+}
+function dtShortDate(d){return new Date(d+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});}
+
+const DETAIL_RENDERERS={
+  streak:{
+    title:()=>'🔥 Habit Streak',
+    render:()=>{
+      let curStreak=0,bestStreak=0,run=0,activeDays=0;
+      const days=[];
+      for(let i=59;i>=0;i--){
+        const d=new Date();d.setDate(d.getDate()-i);
+        const ds=d.toISOString().slice(0,10);
+        const data=ls('daily:'+ds,null);
+        const cnt=data?Object.values(data).filter(v=>v).length:0;
+        days.push({date:ds,cnt});
+        if(cnt>0){run++;activeDays++;if(run>bestStreak)bestStreak=run;}else run=0;
+      }
+      // current streak from most recent backward
+      for(let i=days.length-1;i>=0;i--){if(days[i].cnt>0)curStreak++;else break;}
+      const recent=days.slice(-14);
+      const max=Math.max(1,...recent.map(d=>d.cnt));
+      return `
+        <div class="dt-stat-grid">
+          <div class="dt-stat"><div class="dt-stat-lbl">Current</div><div class="dt-stat-val" style="color:var(--lime);">${curStreak}d</div><div class="dt-stat-sub">in a row</div></div>
+          <div class="dt-stat"><div class="dt-stat-lbl">Best</div><div class="dt-stat-val">${bestStreak}d</div><div class="dt-stat-sub">all time</div></div>
+          <div class="dt-stat"><div class="dt-stat-lbl">Active</div><div class="dt-stat-val">${activeDays}</div><div class="dt-stat-sub">of last 60</div></div>
+        </div>
+        <div class="dt-section">
+          <div class="dt-section-hd">Last 14 days — items completed</div>
+          ${recent.map(d=>dtBarRow(dtShortDate(d.date),d.cnt,max)).join('')}
+        </div>
+        <div class="dt-insight">${curStreak>=7?'<strong>'+curStreak+'-day streak.</strong> Don\'t break twice in a row. Show up tomorrow.':curStreak>0?'Streak active. Stack one more day.':'<strong>Streak at zero.</strong> Check one habit right now to start.'}</div>`;
+    }
+  },
+  water:{
+    title:()=>'💧 Water Intake',
+    render:()=>{
+      const days=[];
+      let total=0,activeDays=0;
+      for(let i=13;i>=0;i--){
+        const d=new Date();d.setDate(d.getDate()-i);
+        const ml=ls('water:'+d.toISOString().slice(0,10),0);
+        days.push({date:d.toISOString().slice(0,10),ml});
+        if(ml>0){total+=ml;activeDays++;}
+      }
+      const goal=getWaterGoal();
+      const todayMl=ls('water:'+today,0);
+      const avg=activeDays?Math.round(total/activeDays):0;
+      const max=Math.max(goal,...days.map(d=>d.ml));
+      return `
+        <div class="dt-stat-grid">
+          <div class="dt-stat"><div class="dt-stat-lbl">Today</div><div class="dt-stat-val" style="color:var(--blue);">${todayMl}<span style="font-size:11px;color:var(--t2);"> ml</span></div><div class="dt-stat-sub">of ${goal} ml goal</div></div>
+          <div class="dt-stat"><div class="dt-stat-lbl">7-day Avg</div><div class="dt-stat-val">${avg}<span style="font-size:11px;color:var(--t2);"> ml</span></div><div class="dt-stat-sub">when logged</div></div>
+          <div class="dt-stat"><div class="dt-stat-lbl">Goal Hits</div><div class="dt-stat-val">${days.filter(d=>d.ml>=goal).length}</div><div class="dt-stat-sub">of last 14</div></div>
+        </div>
+        <div class="dt-section">
+          <div class="dt-section-hd">Last 14 days</div>
+          ${days.map(d=>dtBarRow(dtShortDate(d.date),d.ml||0,max,'blue')).join('')}
+        </div>
+        <div class="dt-insight">${todayMl>=goal?'<strong>Goal hit today.</strong> Keep going — overshooting is fine.':todayMl>=goal*0.6?'<strong>'+Math.round(todayMl/goal*100)+'% there.</strong> '+(goal-todayMl)+' ml to go.':'Behind today. Sip the next 250 ml right now.'}</div>`;
+    }
+  },
+  sleep:{
+    title:()=>'🌙 Sleep History',
+    render:()=>{
+      const days=[];let totalH=0,count=0,totalQ=0,qCount=0;
+      for(let i=13;i>=0;i--){
+        const d=new Date();d.setDate(d.getDate()-i-1); // shift by 1 since sleep is keyed yesterday
+        const ds=d.toISOString().slice(0,10);
+        const s=ls('sleep:'+ds,null);
+        days.push({date:ds,s});
+        if(s&&s.hours){totalH+=parseFloat(s.hours);count++;}
+        if(s&&s.quality){totalQ+=s.quality;qCount++;}
+      }
+      const avg=count?(totalH/count).toFixed(1):'—';
+      const avgQ=qCount?(totalQ/qCount).toFixed(1):'—';
+      const maxH=Math.max(9,...days.map(d=>d.s?parseFloat(d.s.hours||0):0));
+      return `
+        <div class="dt-stat-grid">
+          <div class="dt-stat"><div class="dt-stat-lbl">14-Day Avg</div><div class="dt-stat-val" style="color:var(--violet);">${avg}<span style="font-size:11px;color:var(--t2);"> h</span></div><div class="dt-stat-sub">${count} nights logged</div></div>
+          <div class="dt-stat"><div class="dt-stat-lbl">Avg Quality</div><div class="dt-stat-val">${avgQ}<span style="font-size:11px;color:var(--t2);"> /5</span></div><div class="dt-stat-sub">subjective</div></div>
+          <div class="dt-stat"><div class="dt-stat-lbl">7h+ Nights</div><div class="dt-stat-val">${days.filter(d=>d.s&&parseFloat(d.s.hours||0)>=7).length}</div><div class="dt-stat-sub">of last 14</div></div>
+        </div>
+        <div class="dt-section">
+          <div class="dt-section-hd">Hours per night</div>
+          ${days.map(d=>dtBarRow(dtShortDate(d.date),d.s?parseFloat(d.s.hours||0):0,maxH,'violet')).join('')}
+        </div>
+        <div class="dt-insight">${count===0?'No sleep logged yet. Set bed/wake on Today.':parseFloat(avg)>=7?'<strong>Averaging '+avg+'h.</strong> This is the foundation. Don\'t compromise it.':'<strong>'+avg+'h average is short.</strong> Sleep is the biggest performance lever you control. Aim for 7+.'}</div>`;
+    }
+  },
+  steps:{
+    title:()=>'👟 Steps & Cardio',
+    render:()=>{
+      const days=[];let totalS=0,count=0,totalC=0;
+      for(let i=13;i>=0;i--){
+        const d=new Date();d.setDate(d.getDate()-i);
+        const ds=d.toISOString().slice(0,10);
+        const s=ls('steps:'+ds,null);
+        days.push({date:ds,s});
+        if(s&&s.steps){totalS+=s.steps;count++;}
+        if(s&&s.cardio_min)totalC+=s.cardio_min;
+      }
+      const avg=count?Math.round(totalS/count):0;
+      const maxS=Math.max(10000,...days.map(d=>d.s?d.s.steps||0:0));
+      return `
+        <div class="dt-stat-grid">
+          <div class="dt-stat"><div class="dt-stat-lbl">14-Day Avg</div><div class="dt-stat-val" style="color:var(--gold);">${avg.toLocaleString()}</div><div class="dt-stat-sub">steps/day</div></div>
+          <div class="dt-stat"><div class="dt-stat-lbl">Cardio</div><div class="dt-stat-val">${totalC}<span style="font-size:11px;color:var(--t2);"> min</span></div><div class="dt-stat-sub">last 14 days</div></div>
+          <div class="dt-stat"><div class="dt-stat-lbl">10k+ Days</div><div class="dt-stat-val">${days.filter(d=>d.s&&d.s.steps>=10000).length}</div><div class="dt-stat-sub">of last 14</div></div>
+        </div>
+        <div class="dt-section">
+          <div class="dt-section-hd">Steps per day</div>
+          ${days.map(d=>dtBarRow(dtShortDate(d.date),d.s?d.s.steps||0:0,maxS,'gold')).join('')}
+        </div>
+        <div class="dt-insight">${count===0?'No steps logged yet. Sync from your phone or input manually on Today.':avg>=10000?'<strong>10k+ daily.</strong> Movement is medicine. Keep it.':'<strong>'+avg.toLocaleString()+' avg.</strong> Even 2k more daily compounds over a year. Walk a meeting.'}</div>`;
+    }
+  },
+  xp:{
+    title:()=>'⚡ XP — Daily Discipline Score',
+    render:()=>{
+      const days=[];let total=0,count=0;
+      for(let i=13;i>=0;i--){
+        const d=new Date();d.setDate(d.getDate()-i);
+        const ds=d.toISOString().slice(0,10);
+        const data=ls('daily:'+ds,{});
+        let earned=0,t=0;
+        getAllChecks().forEach(c=>{const m=getHabitMeta(c.id);t+=m.xp;if(data[c.id])earned+=m.xp;});
+        days.push({date:ds,earned,total:t});
+        if(t>0){total+=earned/t;count++;}
+      }
+      const todayXp=getDailyXP(today);
+      const avgPct=count?Math.round(total/count*100):0;
+      return `
+        <div class="dt-stat-grid">
+          <div class="dt-stat"><div class="dt-stat-lbl">Today</div><div class="dt-stat-val" style="color:var(--lime);">${todayXp.earned}/${todayXp.total}</div><div class="dt-stat-sub">XP earned</div></div>
+          <div class="dt-stat"><div class="dt-stat-lbl">14d Avg</div><div class="dt-stat-val">${avgPct}<span style="font-size:11px;color:var(--t2);">%</span></div><div class="dt-stat-sub">of available</div></div>
+          <div class="dt-stat"><div class="dt-stat-lbl">Max XP</div><div class="dt-stat-val">${days.filter(d=>d.total>0&&d.earned===d.total).length}</div><div class="dt-stat-sub">perfect days</div></div>
+        </div>
+        <div class="dt-section">
+          <div class="dt-section-hd">XP earned per day</div>
+          ${days.map(d=>dtBarRow(dtShortDate(d.date),d.earned,Math.max(1,...days.map(x=>x.total)))).join('')}
+        </div>
+        <div class="dt-insight">${todayXp.earned===todayXp.total&&todayXp.total>0?'<strong>Full XP today.</strong> Today is a receipt.':'<strong>'+(todayXp.total-todayXp.earned)+' XP available</strong> still on the table. Easy targets first.'}</div>`;
+    }
+  },
+  journal:{
+    title:()=>'📝 Journal History',
+    render:()=>{
+      const entries=[];
+      for(let i=0;i<30;i++){
+        const d=new Date();d.setDate(d.getDate()-i);
+        const ds=d.toISOString().slice(0,10);
+        const j=ls('journal:'+ds,null);
+        if(j&&(j.win||j.miss||j.focus||j.energy))entries.push({date:ds,...j});
+      }
+      if(!entries.length)return '<div class="dt-empty">No journal entries yet. Write today\'s win on the Today screen.</div>';
+      const streak=computeJournalStreak();
+      return `
+        <div class="dt-stat-grid">
+          <div class="dt-stat"><div class="dt-stat-lbl">Streak</div><div class="dt-stat-val" style="color:var(--lime);">${streak}d</div><div class="dt-stat-sub">consecutive</div></div>
+          <div class="dt-stat"><div class="dt-stat-lbl">Entries</div><div class="dt-stat-val">${entries.length}</div><div class="dt-stat-sub">in last 30d</div></div>
+        </div>
+        <div class="dt-section">
+          <div class="dt-section-hd">Recent entries</div>
+          ${entries.slice(0,7).map(e=>`<div style="background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);padding:12px 14px;margin-bottom:8px;">
+            <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-bottom:6px;">${dtShortDate(e.date)}${e.energy?' · Energy '+e.energy+'/5':''}</div>
+            ${e.win?`<div style="font-size:12px;margin-bottom:4px;"><strong style="color:var(--lime);">Win:</strong> ${e.win.replace(/</g,'&lt;')}</div>`:''}
+            ${e.miss?`<div style="font-size:12px;margin-bottom:4px;"><strong style="color:var(--gold);">Miss:</strong> ${e.miss.replace(/</g,'&lt;')}</div>`:''}
+            ${e.focus?`<div style="font-size:12px;color:var(--t2);"><strong>Focus:</strong> ${e.focus.replace(/</g,'&lt;')}</div>`:''}
+          </div>`).join('')}
+        </div>`;
+    }
+  },
+  training:{
+    title:()=>'🏋️ Training History',
+    render:()=>{
+      const sessions=[];
+      for(let i=0;i<localStorage.length;i++){
+        const k=localStorage.key(i);
+        if(k&&k.startsWith('session:')){const s=ls(k);if(s)sessions.push(s);}
+      }
+      sessions.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+      const recent=sessions.slice(0,10);
+      if(!recent.length)return '<div class="dt-empty">No sessions logged yet. Open "Log Today\'s Session" on the Training page.</div>';
+      return `
+        <div class="dt-stat-grid">
+          <div class="dt-stat"><div class="dt-stat-lbl">Total</div><div class="dt-stat-val" style="color:var(--lime);">${sessions.length}</div><div class="dt-stat-sub">sessions logged</div></div>
+          <div class="dt-stat"><div class="dt-stat-lbl">This Week</div><div class="dt-stat-val">${sessions.filter(s=>{const d=new Date(s.date);return (Date.now()-d.getTime())/86400000<=7;}).length}</div><div class="dt-stat-sub">recent sessions</div></div>
+        </div>
+        <div class="dt-section">
+          <div class="dt-section-hd">Last 10 sessions</div>
+          ${recent.map(s=>{
+            const logged=(s.exercises||[]).filter(e=>e.weight||e.reps).length;
+            const total=(s.exercises||[]).length;
+            return `<div style="background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);padding:10px 14px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">
+              <div><div style="font-size:13px;font-weight:700;">${s.split||'Session'}</div><div style="font-size:11px;color:var(--t2);margin-top:2px;">${dtShortDate(s.date)}</div></div>
+              <div style="font-size:11px;color:var(--lime);font-weight:700;">${logged}/${total} logged</div>
+            </div>`;
+          }).join('')}
+        </div>`;
+    }
+  }
+};
 
 let pendingHabitEditId=null;
 function openHabitEdit(habitId){
@@ -1767,23 +1989,26 @@ function dl(name,content,type){
 }
 
 function exportCSV(){
-  const rows=[['Date','Completion %','Items Done','Items Total']];
-  const total=getAllChecks().length+MEALS.reduce((s,m)=>s+m.items.length,0);
-  for(let i=89;i>=0;i--){
+  const days=typeof analyticsRange==='number'?analyticsRange:30;
+  const allChecks=getAllChecks();
+  const rows=[['Date','Completion %','Items Done','Items Total',...allChecks.map(c=>c.l)]];
+  const total=allChecks.length+MEALS.reduce((s,m)=>s+m.items.length,0);
+  for(let i=days-1;i>=0;i--){
     const d=new Date();d.setDate(d.getDate()-i);
     const k=d.toISOString().slice(0,10);
     const data=ls('daily:'+k,null);
     if(!data)continue;
     const done=Object.values(data).filter(v=>v).length;
-    rows.push([k,Math.round((done/total)*100),done,total]);
+    const cells=allChecks.map(c=>data[c.id]?1:0);
+    rows.push([k,Math.round((done/total)*100),done,total,...cells]);
   }
   const csv=rows.map(r=>r.join(',')).join('\n');
-  dl('life-os-90-days.csv',csv,'text/csv');
+  dl(`life-os-${days}-days.csv`,csv,'text/csv');
   toast('CSV downloaded.');
 }
 
 function exportJSON(){
-  const payload={version:1,exported:new Date().toISOString(),user:ls('gh_user'),data:collectSyncData()};
+  const payload={version:2,exported:new Date().toISOString(),user:fbUser?fbUser.email:null,data:collectSyncData()};
   dl('life-os-backup.json',JSON.stringify(payload,null,2),'application/json');
   toast('JSON downloaded.');
 }
@@ -2261,6 +2486,30 @@ function init(){
     setTimeout(()=>toggleCfg(false),700);
   });
 
+  // ── Dashboard details modal ──
+  document.getElementById('detailsClose')?.addEventListener('click',closeDetails);
+  document.getElementById('detailsModal')?.addEventListener('click',e=>{if(e.target===document.getElementById('detailsModal'))closeDetails();});
+  // Wire clickable dashboard cards (Today section)
+  const wire=(sel,type)=>{
+    const el=document.querySelector(sel);
+    if(!el)return;
+    el.classList.add('dashboard-clickable');
+    el.addEventListener('click',ev=>{
+      // Don't trigger when clicking interactive children (inputs, buttons)
+      if(ev.target.closest('input,button,select,textarea,a,label,.water-add-btn,.water-edit-btn,.edot'))return;
+      openDetails(type);
+    });
+  };
+  wire('.day-prog-hero','streak');
+  wire('#sec-today .body-stats .bs-card:nth-child(1)','water');
+  wire('#sec-today .body-stats .bs-card:nth-child(2)','sleep');
+  wire('#sec-today .body-stats .bs-card:nth-child(3)','steps');
+  wire('#xpHud','xp');
+  wire('#sec-today .today-extra .te-card:nth-child(1)','streak'); // Current Streak
+  wire('#sec-today .today-extra .te-card:nth-child(2)','training'); // Today's Training
+  wire('#sec-today .today-extra .te-card.journal-card','journal'); // Journal card
+  // Sub-stats in the day-prog-hero: split clicks by data-attr is complex, hero -> streak is enough
+
   // ── Habit edit modal ──
   const habitEditModal=document.getElementById('habitEditModal');
   const closeHabitEdit=()=>habitEditModal.classList.remove('show');
@@ -2370,53 +2619,13 @@ function init(){
   });
   document.getElementById('anCalPrev').addEventListener('click',()=>{calMonth--;if(calMonth<0){calMonth=11;calYear--;}renderAnCal();});
   document.getElementById('anCalNext').addEventListener('click',()=>{calMonth++;if(calMonth>11){calMonth=0;calYear++;}renderAnCal();});
-  document.getElementById('exCSV')?.addEventListener('click', () => {
-    const days = analyticsRange;
-    const habits = ls('custom_checks', []).map(h => h.n || h);
-    const rows = [['Date','Completion%',...habits]];
-    for (let i = days - 1; i >= 0; i--) {
-      const d = new Date(); d.setDate(d.getDate() - i);
-      const date = d.toISOString().slice(0,10);
-      const log = ls('daily:'+date, {});
-      const done = habits.filter(h => log[h] || log[h.id]).length;
-      const pct = habits.length ? Math.round(done/habits.length*100) : 0;
-      rows.push([date, pct, ...habits.map(h => (log[h] || log[h.id]) ? 1 : 0)]);
-    }
-    const csv = rows.map(r => r.join(',')).join('\n');
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
-    a.download = 'life-os-'+today+'.csv';
-    a.click();
-    toast('CSV exported');
-  });
-  document.getElementById('exJSON')?.addEventListener('click', () => {
-    const data = collectSyncData ? collectSyncData() : {};
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([JSON.stringify(data,null,2)], {type:'application/json'}));
-    a.download = 'life-os-'+today+'.json';
-    a.click();
-    toast('JSON exported');
-  });
-  document.getElementById('exShare')?.addEventListener('click', async () => {
-    const days = analyticsRange;
-    let done = 0, total = 0;
-    for (let i = 0; i < days; i++) {
-      const d = new Date(); d.setDate(d.getDate() - i);
-      const log = ls('daily:'+d.toISOString().slice(0,10), {});
-      const habits = ls('custom_checks', []);
-      total += habits.length;
-      done += habits.filter(h => log[h] || log[h.id]).length;
-    }
-    const pct = total ? Math.round(done/total*100) : 0;
-    const txt = `Beyond Standard — Last ${days} days: ${pct}% habit completion 🔥`;
-    try { await navigator.clipboard.writeText(txt); toast('Copied to clipboard'); }
-    catch { toast(txt); }
-  });
-  const exBackup=document.getElementById('exBackup');
-  if(exBackup){exBackup.addEventListener('click',()=>{
+  document.getElementById('exCSV')?.addEventListener('click',exportCSV);
+  document.getElementById('exJSON')?.addEventListener('click',exportJSON);
+  document.getElementById('exShare')?.addEventListener('click',copySummary);
+  document.getElementById('exBackup')?.addEventListener('click',()=>{
     if(!fbUser){document.getElementById('authModal').classList.add('show');return;}
     fbAttachListener();toast('↻ Force syncing…');
-  });}
+  });
 
   // Session logger
   const sessModal=document.getElementById('sessionModal');
