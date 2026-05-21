@@ -646,6 +646,29 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
 .sched-field input:focus,.sched-field select:focus,.sched-field textarea:focus{border-color:var(--lime);}
 .sched-field textarea{resize:vertical;min-height:60px;}
 .sched-modal-actions{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;}
+/* ── NUTRITION STATS (eating window + weekly avg) ── */
+.nutrition-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(10px,1.5vw,14px);margin-bottom:clamp(14px,2vh,18px);position:relative;z-index:1;}
+.ns-card{background:var(--s1);border:1px solid var(--bd);border-radius:var(--rl);padding:clamp(14px,2vw,18px);transition:border-color .2s;}
+.ns-card:hover{border-color:var(--bd2);}
+.ns-lbl{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--t3);margin-bottom:8px;}
+.ns-val{font-family:var(--fd);font-size:clamp(20px,3.2vw,28px);font-weight:800;letter-spacing:-1.5px;color:var(--lime);font-variant-numeric:tabular-nums;}
+.ns-sub{font-size:11px;color:var(--t2);margin-top:4px;}
+.ns-macros{display:flex;flex-direction:column;gap:4px;margin-top:2px;}
+.ns-mrow{display:flex;align-items:baseline;gap:6px;font-size:12px;}
+.ns-mrow span:first-child{color:var(--t2);min-width:62px;}
+.ns-mrow strong{font-family:var(--fd);font-weight:800;font-size:14px;font-variant-numeric:tabular-nums;}
+.ns-tgt{font-size:10px;color:var(--t3);}
+@media(max-width:768px){.nutrition-stats{grid-template-columns:1fr;}}
+/* ── MEAL TEMPLATES ── */
+.custom-meal-actions{display:flex;gap:8px;margin-top:8px;}
+.meal-templates{margin-top:14px;}
+.mt-lbl{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-bottom:8px;}
+.mt-chips{display:flex;flex-wrap:wrap;gap:6px;}
+.mt-chip{display:flex;align-items:center;gap:6px;background:rgba(170,150,255,.06);border:1px solid rgba(170,150,255,.22);color:var(--violet);border-radius:99px;padding:5px 10px 5px 12px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s;}
+.mt-chip:hover{background:rgba(170,150,255,.16);}
+.mt-chip-meta{font-size:9px;color:var(--t2);font-weight:700;}
+.mt-chip-del{background:transparent;border:none;color:var(--t3);cursor:pointer;font-size:14px;padding:0 2px;font-family:inherit;line-height:1;}
+.mt-chip-del:hover{color:var(--red);}
 /* ── PHOTO PROGRESS ── */
 .photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin:12px 0;}
 .photo-item{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);overflow:hidden;cursor:pointer;position:relative;aspect-ratio:3/4;transition:transform .2s,border-color .2s;}
@@ -1115,6 +1138,7 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
         <h1 class="stitle">Eat to <span class="hi">Build</span></h1>
         <p class="ssub">Rings update as you log meals. Target 2700 kcal, 140 g protein.</p>
       </div>
+      <div class="nutrition-stats" id="nutritionStats"></div>
       <div class="macro-section">
         <div class="macro-hd">
           <h3>Live Macro Tracking</h3>
@@ -1153,7 +1177,11 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
       </div>
       <div class="meals" id="meals"></div>
       <div style="margin-top:14px;position:relative;z-index:1;">
-        <button class="wt-sv" id="addCustomMealBtn" style="width:100%;padding:10px;">+ Add Custom Meal</button>
+        <div class="custom-meal-actions">
+          <button class="wt-sv" id="addCustomMealBtn" style="flex:1;padding:10px;">+ Add Custom Meal</button>
+          <button class="wt-sv" id="saveAsTemplateBtn" style="padding:10px;border-color:rgba(170,150,255,.28);color:var(--violet);background:rgba(170,150,255,.07);" title="Save last custom meal as template">⭐ Save as Template</button>
+        </div>
+        <div class="meal-templates" id="mealTemplates"></div>
         <div class="custom-meal-form" id="customMealForm">
           <div class="custom-meal-grid">
             <div class="mf-field"><label class="mf-lbl">Meal Name</label><input class="mf-inp" id="cmName" placeholder="e.g. Protein Bar" maxlength="40"></div>

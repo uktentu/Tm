@@ -217,8 +217,8 @@ const lsRm=k=>{try{localStorage.removeItem(k);}catch{}};
 const today=new Date().toISOString().slice(0,10);
 
 /* Keys that we sync (everything app-data, NOT auth/device-local) */
-const SYNC_KEY_PREFIXES=['daily:','water:','wt:','focus:','pr:','outfit:','journal:','session:','measurements:','schedule:','habit_meta:','habit_last:','habit_paused:','goal:','sleep:','steps:','gratitude:','review:','meal_template:'];
-const SYNC_KEYS_EXACT=['custom_checks','bookmarks','profile','custom_meals','macro_targets','custom_prs','custom_dashboard','habit_categories','eating_window','water_goal'];
+const SYNC_KEY_PREFIXES=['daily:','water:','wt:','focus:','pr:','outfit:','journal:','session:','measurements:','schedule:','habit_meta:','habit_last:','habit_paused:','goal:','sleep:','steps:','gratitude:','review:','eating_window:'];
+const SYNC_KEYS_EXACT=['custom_checks','bookmarks','profile','custom_meals','macro_targets','custom_prs','custom_dashboard','habit_categories','water_goal','meal_templates'];
 const LOCAL_ONLY=['gh_pat','gh_gist_id','gh_user','gh_avatar','last_synced','splash:','pwa_dismissed','fb_config','fb_uid','fb_email','photo:','pwa_installed','pwa_dismissed_auth'];
 
 function collectSyncData(){
@@ -733,6 +733,53 @@ function renderStepsInputs(){
   if(tE)tE.value=s.type||'';
 }
 
+/* ── NUTRITION: weekly avg, eating window, meal templates ── */
+function getMealTemplates(){return ls('meal_templates',[]);}
+function saveMealTemplate(t){const arr=getMealTemplates();arr.push(t);lsSet('meal_templates',arr);}
+function delMealTemplate(idx){const arr=getMealTemplates();arr.splice(idx,1);lsSet('meal_templates',arr);}
+function recordMealEvent(){
+  const ew=ls('eating_window:'+today,{});
+  const now=new Date().toISOString();
+  if(!ew.first)ew.first=now;
+  ew.last=now;
+  ew.windowMin=Math.round((new Date(ew.last)-new Date(ew.first))/60000);
+  lsSet('eating_window:'+today,ew);
+}
+function formatMin(min){
+  if(min<60)return min+'m';
+  const h=Math.floor(min/60),m=min%60;return h+'h '+(m?m+'m':'00m');
+}
+function getEatingWindowToday(){
+  return ls('eating_window:'+today,{first:null,last:null,windowMin:0});
+}
+function getWeeklyMacroAvg(){
+  let P=0,C=0,F=0,K=0,days=0;
+  for(let i=0;i<7;i++){
+    const d=new Date();d.setDate(d.getDate()-i);
+    const dk=d.toISOString().slice(0,10);
+    const data=ls('daily:'+dk,{});
+    let dayP=0,dayC=0,dayF=0,dayK=0,hasAny=false;
+    MEALS.forEach((m,mi)=>m.items.forEach((it,ii)=>{
+      if(data[`m${mi}_${ii}`]&&it.m){dayP+=it.m[0];dayC+=it.m[1];dayF+=it.m[2];dayK+=it.m[3];hasAny=true;}
+    }));
+    // also count custom meals (snapshot from current custom_meals if checked)
+    const cms=getCustomMeals();
+    cms.forEach((cm,i)=>{if(data['cm_'+i]){dayP+=cm.P||0;dayC+=cm.C||0;dayF+=cm.F||0;dayK+=cm.K||0;hasAny=true;}});
+    if(hasAny){P+=dayP;C+=dayC;F+=dayF;K+=dayK;days++;}
+  }
+  if(!days)return null;
+  return {P:Math.round(P/days),C:Math.round(C/days),F:Math.round(F/days),K:Math.round(K/days),days};
+}
+function getEatingWindowAvg(){
+  let total=0,count=0;
+  for(let i=0;i<7;i++){
+    const d=new Date();d.setDate(d.getDate()-i);
+    const ew=ls('eating_window:'+d.toISOString().slice(0,10),null);
+    if(ew&&ew.windowMin>0){total+=ew.windowMin;count++;}
+  }
+  return count?Math.round(total/count):0;
+}
+
 /* ── PHOTO PROGRESS ── */
 function compressPhoto(file,maxW=600,quality=0.7){
   return new Promise((resolve,reject)=>{
@@ -1198,6 +1245,7 @@ function renderNutrition(){
   document.getElementById('meals').querySelectorAll('.mi').forEach(el=>{
     el.addEventListener('change',e=>{
       const d=ls('daily:'+today,{});d[el.dataset.key]=e.target.checked;lsSet('daily:'+today,d);
+      if(e.target.checked)recordMealEvent();
       renderNutrition();renderToday();
       if(e.target.checked)toast('Logged!');
     });
@@ -1219,6 +1267,7 @@ function renderNutrition(){
     document.getElementById('meals').querySelectorAll('.custom-meal .mi').forEach(el=>{
       el.querySelector('input').addEventListener('change',e=>{
         const d=ls('daily:'+today,{});d[el.dataset.key]=e.target.checked;lsSet('daily:'+today,d);
+        if(e.target.checked)recordMealEvent();
         renderNutrition();renderToday();
       });
     });
@@ -1231,7 +1280,72 @@ function renderNutrition(){
       });
     });
   }
+  renderNutritionStats();
+  renderMealTemplates();
   bindCursor();
+}
+
+function renderNutritionStats(){
+  const ew=getEatingWindowToday();
+  const ewAvg=getEatingWindowAvg();
+  const wk=getWeeklyMacroAvg();
+  const tgt=getMacroTargets();
+  const el=document.getElementById('nutritionStats');
+  if(!el)return;
+  const fmt=t=>t?new Date(t).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false}):'—';
+  const fasted=ew.windowMin>0?1440-ew.windowMin:0;
+  el.innerHTML=`
+    <div class="ns-card">
+      <div class="ns-lbl">⏱ Eating Window Today</div>
+      <div class="ns-val">${ew.windowMin>0?formatMin(ew.windowMin):'—'}</div>
+      <div class="ns-sub">${fmt(ew.first)} → ${fmt(ew.last)}${ewAvg>0?' · 7d avg '+formatMin(ewAvg):''}</div>
+    </div>
+    <div class="ns-card">
+      <div class="ns-lbl">⏳ Fasted Today</div>
+      <div class="ns-val">${ew.windowMin>0?formatMin(fasted):'—'}</div>
+      <div class="ns-sub">${ew.windowMin>0&&fasted>=14*60?'14h+ fast 🔥':ew.windowMin>0&&fasted>=12*60?'12h+ fast':'Track first meal'}</div>
+    </div>
+    <div class="ns-card">
+      <div class="ns-lbl">📊 7-Day Macro Avg</div>
+      ${wk?`<div class="ns-macros">
+        <div class="ns-mrow"><span>Protein</span><strong style="color:#f06fb6;">${wk.P}g</strong><span class="ns-tgt">/${tgt.P}g</span></div>
+        <div class="ns-mrow"><span>Carbs</span><strong style="color:#ffb547;">${wk.C}g</strong><span class="ns-tgt">/${tgt.C}g</span></div>
+        <div class="ns-mrow"><span>Fats</span><strong style="color:#4aeacc;">${wk.F}g</strong><span class="ns-tgt">/${tgt.F}g</span></div>
+        <div class="ns-mrow"><span>Calories</span><strong style="color:#82a4ff;">${wk.K}</strong><span class="ns-tgt">/${tgt.K}</span></div>
+      </div><div class="ns-sub">${wk.days} day${wk.days>1?'s':''} logged</div>`:'<div class="ns-val" style="font-size:14px;color:var(--t2);">Log some meals to see your weekly trend</div>'}
+    </div>`;
+}
+
+function renderMealTemplates(){
+  const el=document.getElementById('mealTemplates');
+  if(!el)return;
+  const templates=getMealTemplates();
+  if(!templates.length){el.innerHTML='';return;}
+  el.innerHTML=`<div class="mt-lbl">⚡ Quick-add from templates:</div>
+    <div class="mt-chips">${templates.map((t,i)=>`
+      <div class="mt-chip" data-i="${i}" title="P:${t.P||0} C:${t.C||0} F:${t.F||0} ${t.K||0}kcal">
+        <span>${t.name}</span>
+        <span class="mt-chip-meta">${t.K||0}kcal</span>
+        <button class="mt-chip-del" data-i="${i}" title="Delete template">×</button>
+      </div>`).join('')}</div>`;
+  el.querySelectorAll('.mt-chip').forEach(chip=>{
+    chip.addEventListener('click',e=>{
+      if(e.target.classList.contains('mt-chip-del'))return;
+      const t=templates[+chip.dataset.i];
+      const meal={name:t.name,time:new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false}),P:t.P||0,C:t.C||0,F:t.F||0,K:t.K||0};
+      const cms=getCustomMeals();cms.push(meal);lsSet('custom_meals',cms);
+      const d=ls('daily:'+today,{});d['cm_'+(cms.length-1)]=true;lsSet('daily:'+today,d);
+      recordMealEvent();
+      renderNutrition();renderToday();toast('Logged: '+t.name);
+    });
+  });
+  el.querySelectorAll('.mt-chip-del').forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      e.stopPropagation();
+      if(!confirm('Delete this meal template?'))return;
+      delMealTemplate(+btn.dataset.i);renderMealTemplates();toast('Template removed.');
+    });
+  });
 }
 
 /* ════════════════════════════════════════════════
@@ -2113,6 +2227,15 @@ function init(){
       toast('Macro targets updated!');
     });
   }
+
+  // ── Save last custom meal as template ──
+  document.getElementById('saveAsTemplateBtn')?.addEventListener('click',()=>{
+    const cms=getCustomMeals();
+    if(!cms.length){toast('Add a custom meal first to save as template.');return;}
+    const last=cms[cms.length-1];
+    saveMealTemplate({name:last.name,P:last.P||0,C:last.C||0,F:last.F||0,K:last.K||0});
+    renderMealTemplates();toast('Saved "'+last.name+'" as template.');
+  });
 
   // ── Add custom meal ──
   const addCustomMealBtn=document.getElementById('addCustomMealBtn');
