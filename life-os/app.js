@@ -36,7 +36,7 @@ const QUOTES=[
 ];
 
 /* ── SECTIONS ── */
-const SECS=[
+const SECS_ALL=[
   {id:'today',lbl:'Today'},
   {id:'schedule',lbl:'Schedule'},
   {id:'training',lbl:'Training'},
@@ -46,6 +46,87 @@ const SECS=[
   {id:'progress',lbl:'Progress'},
   {id:'analytics',lbl:'Analytics'},
 ];
+function getVisibleSectionIds(){
+  const saved=ls('visible_sections',null);
+  if(!saved||!Array.isArray(saved)||!saved.length)return SECS_ALL.map(s=>s.id);
+  // Always force 'today' visible
+  return saved.includes('today')?saved:['today',...saved];
+}
+function getSecs(){
+  const ids=getVisibleSectionIds();
+  return ids.map(id=>SECS_ALL.find(s=>s.id===id)).filter(Boolean);
+}
+// SECS is dynamic — refresh on every access via getter
+let SECS=getSecs();
+function refreshSecs(){SECS=getSecs();}
+
+/* ── THEMES ── */
+const THEMES={
+  lime:   {n:'Lime',   hex:'#c8ff38', r:200,g:255,b:56},
+  cobalt: {n:'Cobalt', hex:'#5b8cff', r:91, g:140,b:255},
+  rose:   {n:'Rose',   hex:'#ff5b8c', r:255,g:91, b:140},
+  amber:  {n:'Amber',  hex:'#ffb547', r:255,g:181,b:71},
+  violet: {n:'Violet', hex:'#aa96ff', r:170,g:150,b:255},
+};
+function applyTheme(name){
+  const t=THEMES[name]||THEMES.lime;
+  const root=document.documentElement;
+  root.style.setProperty('--lime',t.hex);
+  root.style.setProperty('--lg',  `rgba(${t.r},${t.g},${t.b},.13)`);
+  root.style.setProperty('--lgb', `rgba(${t.r},${t.g},${t.b},.22)`);
+  // pixel cat body color follows theme
+  document.querySelectorAll('.pcat rect[fill="#c8ff38"]').forEach(r=>r.setAttribute('fill',t.hex));
+  // pre-existing rgba inline overrides for shadows/glows — update root vars
+  lsSet('theme',name);
+}
+
+/* ── PERSONAS ── */
+const PERSONAS={
+  athlete:{
+    n:'Athlete',ico:'🏋️',desc:'Strength, hypertrophy, recovery first.',
+    habits:['Gym session done','Hit 140 g protein','Took creatine','3.5 L water','8h sleep','Mobility 10 min'],
+    macros:{P:160,C:380,F:80,K:2900},water:3500,
+    sections:['today','training','nutrition','progress','analytics','schedule'],
+    theme:'lime'
+  },
+  founder:{
+    n:'Founder',ico:'⚡',desc:'Deep work, decision quality, energy.',
+    habits:['3h deep work','Meditation 10 min','30 min movement','7h sleep','Read 1 chapter','No socials before noon'],
+    macros:{P:130,C:280,F:75,K:2400},water:3000,
+    sections:['today','schedule','progress','bookmarks','analytics'],
+    theme:'cobalt'
+  },
+  student:{
+    n:'Student',ico:'🎓',desc:'Focus, study, sleep, basics.',
+    habits:['Study 2h focused','Read 30 pages','8h sleep','2.5 L water','No phone first 30 min','One walk outside'],
+    macros:{P:90,C:320,F:60,K:2200},water:2500,
+    sections:['today','progress','schedule','bookmarks','analytics'],
+    theme:'violet'
+  },
+  recovery:{
+    n:'Recovering',ico:'🌱',desc:'Small consistent wins. Rebuild.',
+    habits:['Water on wake','15 min walk','Make bed','No phone in bed','One fruit','3 deep breaths'],
+    macros:{P:90,C:240,F:65,K:1900},water:2000,
+    sections:['today','progress'],
+    theme:'rose'
+  },
+  custom:{
+    n:'Custom',ico:'✨',desc:'Start blank. Build your own.',
+    habits:[],macros:{P:140,C:370,F:75,K:2700},water:3000,
+    sections:['today','schedule','training','nutrition','progress','analytics'],
+    theme:'lime'
+  }
+};
+function applyPersona(key){
+  const p=PERSONAS[key];if(!p)return;
+  lsSet('persona',key);
+  if(p.habits.length)lsSet('custom_checks',p.habits);
+  lsSet('macro_targets',p.macros);
+  lsSet('water_goal',p.water);
+  lsSet('visible_sections',p.sections);
+  applyTheme(p.theme);
+  refreshSecs();
+}
 
 /* ── SCHEDULE PROFILES ── */
 const PROFILE={
@@ -218,7 +299,7 @@ const today=new Date().toISOString().slice(0,10);
 
 /* Keys that we sync (everything app-data, NOT auth/device-local) */
 const SYNC_KEY_PREFIXES=['daily:','water:','wt:','focus:','pr:','outfit:','journal:','session:','measurements:','schedule:','habit_meta:','habit_last:','habit_paused:','goal:','sleep:','steps:','gratitude:','review:','eating_window:'];
-const SYNC_KEYS_EXACT=['custom_checks','bookmarks','profile','custom_meals','macro_targets','custom_prs','custom_dashboard','habit_categories','water_goal','meal_templates'];
+const SYNC_KEYS_EXACT=['custom_checks','bookmarks','profile','custom_meals','macro_targets','custom_prs','custom_dashboard','habit_categories','water_goal','meal_templates','persona','theme','visible_sections'];
 const LOCAL_ONLY=['last_synced','splash:','pwa_dismissed','fb_config','fb_uid','fb_email','photo:','pwa_installed','pwa_dismissed_auth'];
 
 function collectSyncData(){
@@ -575,18 +656,26 @@ function showNotif(title,body){
    NAV / CLOCK
    ════════════════════════════════════════════════ */
 function buildNav(){
+  refreshSecs();
   const nd=document.getElementById('ndots');
   nd.innerHTML='';
+  // Also hide section elements that aren't in the visible list
+  SECS_ALL.forEach(s=>{
+    const el=document.getElementById('sec-'+s.id);
+    if(el)el.dataset.visible=SECS.some(v=>v.id===s.id)?'1':'0';
+  });
   SECS.forEach((s,i)=>{
     const b=document.createElement('button');
-    b.className='ndot'+(i===0?' active':'');
+    b.className='ndot'+(i===curSec?' active':'');
     b.title=s.lbl;
     b.addEventListener('click',()=>goTo(i));
     nd.appendChild(b);
   });
+  // If current section was hidden by user, jump to Today
+  if(curSec>=SECS.length){curSec=0;}
 }
 function goTo(idx){
-  if(transitioning||idx===curSec)return;
+  if(transitioning||idx===curSec||!SECS[idx])return;
   transitioning=true;
   document.getElementById('sec-'+SECS[curSec].id).classList.add('exit');
   const to=document.getElementById('sec-'+SECS[idx].id);
@@ -595,15 +684,17 @@ function goTo(idx){
     to.classList.add('active');
     curSec=idx;transitioning=false;
     updateNav();
-    if(idx===6){renderProgress();setTimeout(animStats,200);}
-    if(idx===7)renderAnalytics();
+    const sid=SECS[idx].id;
+    if(sid==='progress'){renderProgress();setTimeout(animStats,200);}
+    if(sid==='analytics')renderAnalytics();
   },280);
 }
 function updateNav(){
   document.querySelectorAll('.ndot').forEach((d,i)=>d.classList.toggle('active',i===curSec));
-  document.getElementById('slbl').textContent=SECS[curSec].lbl;
+  document.getElementById('slbl').textContent=SECS[curSec]?.lbl||'Today';
   if(typeof catReact==='function')catReact('sectionChange');
 }
+function curSecId(){return SECS[curSec]?.id||'today';}
 function updateClock(){
   const n=new Date();
   document.getElementById('clock').textContent=`${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')}`;
@@ -856,6 +947,290 @@ function getProgressionSuggestion(exName,dayIdx,repRange){
   const r1=parseInt(ex1.reps),r2=parseInt(ex2.reps);
   if(isNaN(r1)||isNaN(r2)||r1<top||r2<top)return null;
   return {weight:w1+2.5,prevWeight:w1};
+}
+
+/* ════════════════════════════════════════════════
+   RIGHT NOW · STATS BAR · SMART INSIGHT · WEEKLY REVIEW
+   ════════════════════════════════════════════════ */
+function rightNowCompute(){
+  const now=new Date();
+  const hour=now.getHours();
+  const mins=hour*60+now.getMinutes();
+  const data=ls('daily:'+today,{});
+  const allChecks=getAllChecks();
+  const prof=getProfile(curP);
+  for(const b of prof.blocks){
+    const [bh,bm]=b.t.split(':').map(Number);
+    const bMins=bh*60+bm;
+    if(bMins>mins&&bMins-mins<=30){
+      return {ico:b.tag==='train'?'🏋️':b.tag==='eat'?'🍽':b.tag==='work'?'💼':b.tag==='rest'?'🌙':'⏰',
+              title:`${b.n} in ${bMins-mins} min`,sub:(b.d||'').split('.')[0],section:'schedule'};
+    }
+  }
+  const waterMl=ls('water:'+today,0);
+  const waterGoal=typeof getWaterGoal==='function'?getWaterGoal():3000;
+  if(hour>=5&&hour<11&&waterMl<500){
+    return {ico:'💧',title:'Start with water',sub:`Aim for 500 ml in the next 30 min · goal ${waterGoal} ml`,section:'today',action:'water'};
+  }
+  if(hour>=9&&hour<13){
+    const undone=allChecks.filter(c=>!data[c.id]);
+    if(undone.length>=Math.ceil(allChecks.length/2)){
+      return {ico:'✅',title:`${undone.length} habits open`,sub:'Stack 2 quick wins before lunch',section:'today',action:'checks'};
+    }
+  }
+  if(hour>=14&&hour<17&&waterMl<waterGoal*0.6){
+    return {ico:'💧',title:'Afternoon hydration check',sub:`${waterMl} / ${waterGoal} ml so far`,section:'today',action:'water'};
+  }
+  if(hour>=19&&hour<23){
+    const j=ls('journal:'+today,{});
+    if(!j.win&&!j.miss)return {ico:'📝',title:'Reflect on today',sub:'2 lines: what won, what missed',section:'today',action:'journal'};
+  }
+  if(hour>=22)return {ico:'🌙',title:'Wind down time',sub:'Screens off · 30-min runway to bed',section:'today',action:'sleep'};
+  if(now.getDay()===0&&hour>=17){
+    const wk=getWeekKey(now);
+    if(!ls('review:'+wk,null))return {ico:'📅',title:'Weekly review awaits',sub:'2-minute reflection on the week',section:'today',action:'review'};
+  }
+  const undone=allChecks.filter(c=>!data[c.id]);
+  if(undone.length)return {ico:'🎯',title:`Next: ${undone[0].l}`,sub:`${undone.length} habits remaining today`,section:'today',action:'checks'};
+  return {ico:'🏆',title:'All habits done!',sub:'Today is a receipt. Rest is part of work.',section:'today'};
+}
+
+function renderRightNow(){
+  const el=document.getElementById('rightNow');if(!el)return;
+  const rn=rightNowCompute();
+  document.getElementById('rnIco').textContent=rn.ico;
+  document.getElementById('rnTitle').textContent=rn.title;
+  document.getElementById('rnSub').textContent=rn.sub;
+  el.dataset.action=rn.action||'';
+  el.dataset.section=rn.section||'today';
+}
+
+function rightNowClick(){
+  const el=document.getElementById('rightNow');
+  const action=el.dataset.action;
+  const sec=el.dataset.section;
+  if(sec&&sec!==curSecId()){
+    const idx=SECS.findIndex(s=>s.id===sec);
+    if(idx>=0)goTo(idx);
+  }
+  setTimeout(()=>{
+    if(action==='water'){const cur=ls('water:'+today,0);lsSet('water:'+today,cur+250);renderWaterRing();toast('+250 ml');renderRightNow();renderStatsBar();}
+    else if(action==='checks')document.getElementById('checks')?.scrollIntoView({behavior:'smooth',block:'center'});
+    else if(action==='journal')document.getElementById('journalWin')?.focus();
+    else if(action==='review')openWeeklyReview();
+  },(action==='checks'||action==='journal')?320:0);
+}
+
+function renderStatsBar(){
+  let streak=0;
+  for(let i=0;i<365;i++){
+    const d=new Date();d.setDate(d.getDate()-i);
+    const dd=ls('daily:'+d.toISOString().slice(0,10),null);
+    if(!dd||!Object.values(dd).filter(v=>v).length)break;
+    streak++;
+  }
+  const elStreak=document.getElementById('sbStreak');if(elStreak)elStreak.textContent=streak;
+  const data=ls('daily:'+today,{});
+  const checks=getAllChecks();
+  const cd=checks.filter(c=>data[c.id]).length;
+  let md=0,mt=0;MEALS.forEach((m,mi)=>m.items.forEach((_,ii)=>{mt++;if(data[`m${mi}_${ii}`])md++;}));
+  const sc=(checks.length+mt>0)?Math.round(((cd+md)/(checks.length+mt))*100):0;
+  const elPct=document.getElementById('sbPct');if(elPct)elPct.textContent=sc+'%';
+  const xp=getDailyXP(today);
+  const elXp=document.getElementById('sbXp');if(elXp)elXp.textContent=xp.earned+'/'+xp.total;
+  const elW=document.getElementById('sbWater');if(elW)elW.textContent=ls('water:'+today,0);
+  const yk=new Date();yk.setDate(yk.getDate()-1);
+  const s=ls('sleep:'+yk.toISOString().slice(0,10),null);
+  const elS=document.getElementById('sbSleep');if(elS)elS.textContent=s&&s.hours?s.hours+'h':'—';
+}
+
+function renderSmartInsight(){
+  const el=document.getElementById('smartInsight');if(!el)return;
+  const days=[];
+  for(let i=0;i<14;i++){
+    const d=new Date();d.setDate(d.getDate()-i);
+    const k=d.toISOString().slice(0,10);
+    const data=ls('daily:'+k,{});
+    const cnt=Object.values(data).filter(v=>v).length;
+    const sleep=ls('sleep:'+k,{});
+    const journal=ls('journal:'+k,{});
+    days.push({date:k,dow:new Date(k+'T12:00:00').getDay(),cnt,sleepH:parseFloat(sleep.hours||0),energy:journal.energy||0});
+  }
+  const insights=[];
+  const well=days.filter(d=>d.sleepH>=7);
+  const poor=days.filter(d=>d.sleepH>0&&d.sleepH<7);
+  if(well.length>=3&&poor.length>=3){
+    const wa=well.reduce((s,d)=>s+d.cnt,0)/well.length;
+    const pa=poor.reduce((s,d)=>s+d.cnt,0)/poor.length;
+    if(pa>0&&wa/pa>=1.25)insights.push(`You complete <strong>${(wa/pa).toFixed(1)}× more</strong> habits on days you sleep 7+ hours.`);
+  }
+  const byDow=[[],[],[],[],[],[],[]];
+  days.forEach(d=>byDow[d.dow].push(d.cnt));
+  const avgs=byDow.map(arr=>arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:0);
+  const maxIdx=avgs.indexOf(Math.max(...avgs));
+  const dowNames=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  if(avgs[maxIdx]>=2&&days.length>=7)insights.push(`Your strongest day is <strong>${dowNames[maxIdx]}</strong> — ${avgs[maxIdx].toFixed(1)} habits avg.`);
+  const recent3=days.slice(0,3);
+  if(recent3.every(d=>d.cnt===0))insights.push(`<strong>3-day silence.</strong> Smallest win: tick one box now.`);
+  const hiE=days.filter(d=>d.energy>=4);
+  if(hiE.length>=2){
+    const avgE=hiE.reduce((s,d)=>s+d.cnt,0)/hiE.length;
+    if(avgE>3)insights.push(`High-energy days average <strong>${avgE.toFixed(0)} habits</strong> — energy compounds.`);
+  }
+  if(!insights.length){el.classList.remove('show');return;}
+  el.innerHTML='<span>'+insights[Math.floor(Math.random()*insights.length)]+'</span>';
+  el.classList.add('show');
+}
+
+/* ════════════════════════════════════════════════
+   ONBOARDING WIZARD
+   ════════════════════════════════════════════════ */
+let obState={step:1,persona:null,sections:null,theme:null};
+function openOnboarding(){
+  obState={step:1,persona:null,sections:null,theme:ls('theme','lime')};
+  renderObPersonas();
+  renderObSections();
+  renderObThemes();
+  obGoto(1);
+  document.getElementById('onboardModal').classList.add('show');
+}
+function closeOnboarding(){
+  document.getElementById('onboardModal').classList.remove('show');
+  lsSet('onboarded',true);
+}
+function obGoto(step){
+  obState.step=step;
+  document.querySelectorAll('.ob-step').forEach(s=>s.classList.toggle('active',+s.dataset.step===step));
+  const pct=Math.round((step/4)*100);
+  const fill=document.getElementById('obProgressFill');if(fill)fill.style.width=pct+'%';
+}
+function renderObPersonas(){
+  const el=document.getElementById('obPersonas');if(!el)return;
+  el.innerHTML='';
+  Object.entries(PERSONAS).forEach(([key,p])=>{
+    const btn=document.createElement('button');
+    btn.className='ob-persona'+(obState.persona===key?' sel':'');
+    btn.innerHTML=`<div class="ob-persona-ico">${p.ico}</div><div class="ob-persona-name">${p.n}</div><div class="ob-persona-desc">${p.desc}</div>`;
+    btn.addEventListener('click',()=>{
+      obState.persona=key;
+      obState.sections=[...p.sections];
+      obState.theme=p.theme;
+      renderObPersonas();renderObSections();renderObThemes();
+      document.getElementById('obNext2').disabled=false;
+    });
+    el.appendChild(btn);
+  });
+}
+function renderObSections(){
+  const el=document.getElementById('obSections');if(!el)return;
+  el.innerHTML='';
+  const sel=obState.sections||SECS_ALL.map(s=>s.id);
+  SECS_ALL.forEach(s=>{
+    const on=sel.includes(s.id);
+    const locked=s.id==='today';
+    const tile=document.createElement('button');
+    tile.className='ob-sec-tile'+(on?' on':'')+(locked?' locked':'');
+    tile.innerHTML=`<div class="ob-sec-check"></div>${s.lbl}${locked?' <span style="color:var(--t3);font-size:9px;margin-left:auto;">PINNED</span>':''}`;
+    if(!locked){
+      tile.addEventListener('click',()=>{
+        obState.sections=on?sel.filter(x=>x!==s.id):[...sel,s.id];
+        renderObSections();
+      });
+    }
+    el.appendChild(tile);
+  });
+}
+function renderObThemes(){
+  const el=document.getElementById('obThemes');if(!el)return;
+  el.innerHTML='';
+  Object.entries(THEMES).forEach(([key,t])=>{
+    const dot=document.createElement('button');
+    dot.className='ob-theme-dot'+(obState.theme===key?' sel':'');
+    dot.style.background=t.hex;
+    dot.title=t.n;
+    dot.addEventListener('click',()=>{
+      obState.theme=key;applyTheme(key);renderObThemes();
+    });
+    el.appendChild(dot);
+  });
+}
+function finishOnboarding(signIn){
+  if(obState.persona)applyPersona(obState.persona);
+  if(obState.sections&&obState.sections.length){
+    let s=[...obState.sections];if(!s.includes('today'))s=['today',...s];
+    lsSet('visible_sections',s);
+  }
+  if(obState.theme)applyTheme(obState.theme);
+  refreshSecs();buildNav();renderToday();renderSched();renderTraining();renderNutrition();renderBm();
+  closeOnboarding();
+  if(signIn)document.getElementById('authModal').classList.add('show');
+  else{lsSet('pwa_dismissed_auth',true);toast('Welcome — you can sign in anytime from Settings.');}
+}
+
+// Wire onboarding navigation (delegated on the modal)
+document.addEventListener('click',e=>{
+  const ob=document.getElementById('onboardModal');if(!ob||!ob.classList.contains('show'))return;
+  const btn=e.target.closest('[data-action]');
+  if(btn&&ob.contains(btn)){
+    const a=btn.dataset.action;
+    if(a==='next'){if(obState.step<4)obGoto(obState.step+1);}
+    else if(a==='back'){if(obState.step>1)obGoto(obState.step-1);}
+    else if(a==='finish'){finishOnboarding(false);}
+  }
+  if(e.target.id==='obSkipX'){if(confirm('Skip setup? Defaults apply.'))finishOnboarding(false);}
+  if(e.target.id==='obFinishSignIn'){finishOnboarding(true);}
+  if(e.target.id==='obFinishOffline'){finishOnboarding(false);}
+});
+
+function getWeekKey(d){
+  d=d||new Date();
+  const onejan=new Date(d.getFullYear(),0,1);
+  const week=Math.ceil((((d-onejan)/86400000)+onejan.getDay()+1)/7);
+  return d.getFullYear()+'-W'+String(week).padStart(2,'0');
+}
+
+function openWeeklyReview(){
+  const wk=getWeekKey();
+  const prev=ls('review:'+wk,{});
+  let activeDays=0,totalXP=0,xpDays=0,energySum=0,energyDays=0;
+  const habitCount={};
+  for(let i=0;i<7;i++){
+    const d=new Date();d.setDate(d.getDate()-i);
+    const k=d.toISOString().slice(0,10);
+    const data=ls('daily:'+k,null);
+    if(data){
+      const c=Object.values(data).filter(v=>v).length;
+      if(c>0)activeDays++;
+      getAllChecks().forEach(h=>{if(data[h.id])habitCount[h.l]=(habitCount[h.l]||0)+1;});
+    }
+    const xp=getDailyXP(k);if(xp.total){totalXP+=xp.earned/xp.total;xpDays++;}
+    const j=ls('journal:'+k,{});if(j.energy){energySum+=j.energy;energyDays++;}
+  }
+  const topHabits=Object.entries(habitCount).sort((a,b)=>b[1]-a[1]).slice(0,3);
+  const avgXP=xpDays?Math.round(totalXP/xpDays*100):0;
+  const avgE=energyDays?(energySum/energyDays).toFixed(1):'—';
+  document.getElementById('wrStats').innerHTML=`
+    <div class="dt-stat-grid" style="margin-bottom:18px;">
+      <div class="dt-stat"><div class="dt-stat-lbl">Active</div><div class="dt-stat-val" style="color:var(--lime);">${activeDays}/7</div><div class="dt-stat-sub">days</div></div>
+      <div class="dt-stat"><div class="dt-stat-lbl">XP Avg</div><div class="dt-stat-val">${avgXP}%</div><div class="dt-stat-sub">of available</div></div>
+      <div class="dt-stat"><div class="dt-stat-lbl">Energy</div><div class="dt-stat-val">${avgE}<span style="font-size:11px;color:var(--t2);"> /5</span></div><div class="dt-stat-sub">avg</div></div>
+    </div>
+    ${topHabits.length?`<div style="margin-bottom:18px;"><div style="font-size:11px;font-weight:700;letter-spacing:1.8px;text-transform:uppercase;color:var(--t2);margin-bottom:10px;">Top wins this week</div>${topHabits.map(([n,c])=>`<div style="display:flex;justify-content:space-between;padding:8px 12px;background:var(--s2);border-radius:6px;margin-bottom:4px;font-size:12px;"><span>${n}</span><strong style="color:var(--lime);">${c}×</strong></div>`).join('')}</div>`:''}
+  `;
+  document.getElementById('wrWin').value=prev.win||'';
+  document.getElementById('wrLesson').value=prev.lesson||'';
+  document.getElementById('wrFocus').value=prev.focus||'';
+  document.getElementById('weeklyReviewModal').classList.add('show');
+}
+
+function maybeAutoWeeklyReview(){
+  const now=new Date();
+  // Sunday evening (>= 18:00), if not done
+  if(now.getDay()!==0||now.getHours()<18)return;
+  const wk=getWeekKey(now);
+  if(ls('review:'+wk,null))return;
+  if(ls('review_dismissed:'+wk,false))return;
+  setTimeout(openWeeklyReview,1500);
 }
 
 /* ════════════════════════════════════════════════
@@ -1232,7 +1607,7 @@ function renderToday(){
         }
         el.classList.toggle('done',e.target.checked);
         renderToday();
-        if(curSec===3)renderNutrition();
+        if(curSecId()==="nutrition")renderNutrition();
         if(e.target.checked){
           try{navigator.vibrate&&navigator.vibrate(15);}catch{}
           const xp=getHabitMeta(el.dataset.id).xp;
@@ -1260,6 +1635,7 @@ function renderToday(){
     <div class="tlb ${i<ni?'done':i===ni?'now':''}">
       <div class="tlt">${b.t}</div><div class="tln">${b.n}</div><div class="tlg tt-${b.tag}">${b.tag}</div>
     </div>`).join('');
+  renderStatsBar();renderRightNow();renderSmartInsight();
 }
 
 /* ════════════════════════════════════════════════
@@ -1390,7 +1766,7 @@ function saveSession(){
   lsSet('session:'+today+':'+pendingSessionDayIdx,{dayIdx:pendingSessionDayIdx,split:day.split,date:today,exercises});
   document.getElementById('sessionModal').classList.remove('show');
   renderSessionHistory();
-  if(curSec===6)renderProgress();
+  if(curSecId()==="progress")renderProgress();
   toast('Session saved!');
   if(typeof catReact==='function')catReact('sessionLogged');
 }
@@ -2324,14 +2700,16 @@ function rerenderAll(){
   curP=ls('profile','A');
   document.getElementById('pswitch').dataset.p=curP;
   renderToday();renderSched();renderTraining();renderNutrition();renderOutfitPlanner();renderBm();
-  if(curSec===6)renderProgress();
-  if(curSec===7)renderAnalytics();
+  if(curSecId()==="progress")renderProgress();
+  if(curSecId()==="analytics")renderAnalytics();
 }
 
 /* ════════════════════════════════════════════════
    INIT
    ════════════════════════════════════════════════ */
 function init(){
+  applyTheme(ls('theme','lime'));
+  refreshSecs();
   buildNav();updateNav();
   document.getElementById('cdate').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   updateClock();setInterval(updateClock,1000);
@@ -2529,7 +2907,7 @@ function init(){
 
   // ── Live cooldown tick: update countdowns every minute ──
   setInterval(()=>{
-    if(curSec!==0)return;
+    if(curSecId()!=="today")return;
     document.querySelectorAll('.ch-cd[data-id]').forEach(el=>{
       const rem=getHabitCooldownRemaining(el.dataset.id);
       if(rem<=0){renderToday();return;}
@@ -2725,7 +3103,7 @@ function init(){
         toast('+250 ml water — total '+(cur+250)+' ml today');
       }else if(act==='weight'){
         const v=prompt('Enter today\'s weight (kg):',ls('wt:'+today,'')||'');
-        if(v){const n=parseFloat(v);if(!isNaN(n)&&n>=30&&n<=250){lsSet('wt:'+today,n);toast('Weight logged: '+n.toFixed(1)+' kg');if(curSec===6)renderProgress();}else toast('Invalid weight.');}
+        if(v){const n=parseFloat(v);if(!isNaN(n)&&n>=30&&n<=250){lsSet('wt:'+today,n);toast('Weight logged: '+n.toFixed(1)+' kg');if(curSecId()==="progress")renderProgress();}else toast('Invalid weight.');}
       }else if(act==='todayChecks'){
         document.querySelectorAll('.ndot')[0]?.click();
         setTimeout(()=>document.getElementById('checks')?.scrollIntoView({behavior:'smooth',block:'center'}),300);
@@ -2926,8 +3304,87 @@ function init(){
   if(ls('notify_enabled',false)&&typeof Notification!=='undefined'&&Notification.permission==='granted'){
     scheduleAllNotifications();
   }
-  // Reschedule every hour to catch new day
   setInterval(scheduleAllNotifications,60*60*1000);
+
+  // ── Right Now click + auto-refresh ──
+  document.getElementById('rightNow')?.addEventListener('click',rightNowClick);
+  setInterval(()=>{if(curSecId()==='today'){renderRightNow();renderStatsBar();}},60000);
+
+  // ── Stats bar item clicks open the details modal ──
+  document.querySelectorAll('.sb-item').forEach(it=>it.addEventListener('click',()=>{if(it.dataset.d)openDetails(it.dataset.d);}));
+
+  // ── Theme picker in settings ──
+  function renderThemePicker(){
+    const row=document.getElementById('spThemeRow');if(!row)return;
+    const cur=ls('theme','lime');
+    row.innerHTML='';
+    Object.entries(THEMES).forEach(([key,t])=>{
+      const b=document.createElement('button');
+      b.className='sp-theme-dot'+(key===cur?' sel':'');
+      b.title=t.n;b.style.background=t.hex;
+      b.addEventListener('click',()=>{applyTheme(key);renderThemePicker();toast('Theme: '+t.n);});
+      row.appendChild(b);
+    });
+  }
+  renderThemePicker();
+
+  // ── Section visibility toggles in settings ──
+  function renderSecToggles(){
+    const wrap=document.getElementById('spSecToggles');if(!wrap)return;
+    const visible=getVisibleSectionIds();
+    wrap.innerHTML='';
+    SECS_ALL.forEach(s=>{
+      const isVisible=visible.includes(s.id);
+      const isLocked=s.id==='today';
+      const row=document.createElement('div');
+      row.className='sp-sec-toggle'+(isVisible?' on':'')+(isLocked?' locked':'');
+      row.innerHTML=`<span class="sp-sec-name">${s.lbl}${isLocked?' <span style="color:var(--t3);font-size:10px;">· always on</span>':''}</span><span class="sp-sec-state">${isVisible?'ON':'OFF'}</span>`;
+      if(!isLocked){
+        row.addEventListener('click',()=>{
+          let next=visible.includes(s.id)?visible.filter(x=>x!==s.id):[...visible,s.id];
+          // preserve canonical order
+          next=SECS_ALL.map(x=>x.id).filter(id=>next.includes(id));
+          lsSet('visible_sections',next);
+          refreshSecs();buildNav();renderSecToggles();
+          toast(s.lbl+(visible.includes(s.id)?' hidden':' shown'));
+        });
+      }
+      wrap.appendChild(row);
+    });
+  }
+  renderSecToggles();
+
+  // ── Re-run onboarding button ──
+  document.getElementById('rerunOnboardBtn')?.addEventListener('click',()=>{
+    document.getElementById('settingsPanel').classList.remove('show');
+    openOnboarding();
+  });
+
+  // ── Weekly review modal handlers ──
+  const wrModal=document.getElementById('weeklyReviewModal');
+  const closeWr=()=>wrModal.classList.remove('show');
+  document.getElementById('wrClose')?.addEventListener('click',closeWr);
+  wrModal?.addEventListener('click',e=>{if(e.target===wrModal)closeWr();});
+  document.getElementById('wrSaveBtn')?.addEventListener('click',()=>{
+    const wk=getWeekKey();
+    lsSet('review:'+wk,{
+      win:document.getElementById('wrWin').value.trim(),
+      lesson:document.getElementById('wrLesson').value.trim(),
+      focus:document.getElementById('wrFocus').value.trim(),
+      savedAt:new Date().toISOString()
+    });
+    closeWr();toast('Weekly review saved.');
+    if(typeof catReact==='function')catReact('sessionLogged');
+  });
+  document.getElementById('wrSkipBtn')?.addEventListener('click',()=>{
+    lsSet('review_dismissed:'+getWeekKey(),true);closeWr();toast('Skipped this week\'s review.');
+  });
+
+  // ── Onboarding (first launch) ──
+  setTimeout(()=>{
+    if(!ls('onboarded',false))openOnboarding();
+    else maybeAutoWeeklyReview();
+  },5500);
 }
 
 document.addEventListener('DOMContentLoaded',init);

@@ -3,7 +3,7 @@
    Cache-first · Offline fallback · Push
    ═══════════════════════════════════════════ */
 
-const CACHE = 'life-os-v16';
+const CACHE = 'life-os-v17';
 const ASSETS = [
   './',
   './index.html',
