@@ -1,6 +1,6 @@
 /* ════════════════════════════════════════════════
-   BEYOND STANDARD — Life OS v5
-   PWA · GitHub Gist Sync · Push Notifications
+   BEYOND STANDARD — Life OS v6
+   PWA · Firebase Realtime Sync · Push Notifications
    ════════════════════════════════════════════════ */
 
 /* ── QUOTES ── */
@@ -207,19 +207,20 @@ const MEALS=[
   ]},
 ];
 
-const MACRO_TARGETS={P:140,C:370,F:75,K:2700};
+const MACRO_DEFAULTS={P:140,C:370,F:75,K:2700};
+function getMacroTargets(){return ls('macro_targets',MACRO_DEFAULTS);}
 const PR_LIFTS=['Bench Press','Deadlift','Squat','Overhead Press','Barbell Row','Pull-Ups'];
 
 /* ── STORAGE ── */
 const ls=(k,fb=null)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):fb;}catch{return fb;}};
-const lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));scheduleAutoSync();}catch{}};
+const lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));fbWrite(k,v);}catch{}};
 const lsRm=k=>{try{localStorage.removeItem(k);}catch{}};
 const today=new Date().toISOString().slice(0,10);
 
-/* Keys that we sync to Gist (everything app-data, NOT auth/device-local) */
-const SYNC_KEY_PREFIXES=['daily:','water:','wt:','focus:','pr:','outfit:'];
-const SYNC_KEYS_EXACT=['custom_checks','bookmarks','profile','notify_enabled','notify_min'];
-const LOCAL_ONLY=['gh_pat','gh_gist_id','gh_user','gh_avatar','last_synced','splash:','pwa_dismissed'];
+/* Keys that we sync (everything app-data, NOT auth/device-local) */
+const SYNC_KEY_PREFIXES=['daily:','water:','wt:','focus:','pr:','outfit:','journal:','session:','measurements:','schedule:'];
+const SYNC_KEYS_EXACT=['custom_checks','bookmarks','profile','custom_meals','macro_targets','custom_prs'];
+const LOCAL_ONLY=['gh_pat','gh_gist_id','gh_user','gh_avatar','last_synced','splash:','pwa_dismissed','fb_config','fb_uid','fb_email'];
 
 function collectSyncData(){
   const out={};
@@ -241,15 +242,112 @@ function applySyncData(data){
   });
 }
 
+/* ════════════════════════════════════════════════
+   FIREBASE REALTIME DATABASE SYNC
+   ════════════════════════════════════════════════ */
+let fbApp=null,fbDb=null,fbAuth=null,fbUser=null,fbListenerOff=null;
+const FB_PATH=uid=>'users/'+uid+'/sync';
+
+function initFirebase(config){
+  if(fbApp)return;
+  try{
+    fbApp=firebase.initializeApp(config);
+    fbAuth=firebase.auth();
+    fbDb=firebase.database();
+    fbDb.ref('.info/connected').on('value',s=>setSyncStatus(s.val()?'ok':''));
+    fbAuth.onAuthStateChanged(user=>{
+      if(user){
+        fbUser=user;
+        localStorage.setItem('fb_uid',user.uid);
+        localStorage.setItem('fb_email',user.email);
+        fbAttachListener();
+        updateUserUI();
+        setSyncStatus('ok');
+      }else{
+        fbUser=null;
+        setSyncStatus('');
+        updateUserUI();
+      }
+    });
+  }catch(e){console.warn('Firebase init failed:',e);}
+}
+
+function fbWrite(k,v){
+  if(!fbDb||!fbUser)return;
+  if(LOCAL_ONLY.some(p=>k.startsWith(p)))return;
+  if(!SYNC_KEY_PREFIXES.some(p=>k.startsWith(p))&&!SYNC_KEYS_EXACT.includes(k))return;
+  const fk=k.replace(/[.#$\[\]]/g,'_');
+  fbDb.ref(FB_PATH(fbUser.uid)+'/'+fk).set(v);
+}
+
+function fbAttachListener(){
+  const ref=fbDb.ref(FB_PATH(fbUser.uid));
+  if(fbListenerOff)fbListenerOff();
+  const cb=ref.on('value',snap=>{
+    const d=snap.val();
+    if(d)applySyncData(d);
+    localStorage.setItem('last_synced',new Date().toISOString());
+    setSyncStatus('ok');
+    rerenderAll();
+  });
+  fbListenerOff=()=>ref.off('value',cb);
+}
+
+async function handleFbSignIn(email,pass,create=false){
+  const msg=document.getElementById('authMsg');
+  msg.textContent='Signing in…';msg.className='auth-msg';
+  try{
+    if(create)await fbAuth.createUserWithEmailAndPassword(email,pass);
+    else await fbAuth.signInWithEmailAndPassword(email,pass);
+    setTimeout(()=>{
+      document.getElementById('authModal').classList.remove('show');
+      toast('Syncing your data…');
+    },600);
+  }catch(e){
+    msg.textContent='✗ '+e.message;
+    msg.className='auth-msg err';
+  }
+}
+
+async function handleFbSignOut(){
+  if(fbListenerOff)fbListenerOff();
+  if(fbAuth)await fbAuth.signOut();
+  fbUser=null;
+  localStorage.removeItem('fb_uid');
+  localStorage.removeItem('fb_email');
+  updateUserUI();
+  toast('Signed out.');
+}
+
+function handleFbConfig(configStr){
+  const msg=document.getElementById('authMsg');
+  try{
+    const config=JSON.parse(configStr);
+    if(!config.apiKey||!config.databaseURL)throw new Error('Missing apiKey or databaseURL');
+    localStorage.setItem('fb_config',JSON.stringify(config));
+    initFirebase(config);
+    document.getElementById('fbConfigArea').style.display='none';
+    document.getElementById('fbSignInArea').style.display='block';
+    msg.textContent='✓ Firebase connected. Sign in below.';
+    msg.className='auth-msg ok';
+  }catch(e){
+    msg.textContent='✗ Invalid config: '+e.message;
+    msg.className='auth-msg err';
+  }
+}
+
 /* ── STATE ── */
+let bmSearchQuery = '';
+let bmCatFilter = 'all';
 let curSec=0,transitioning=false;
 let curP=ls('profile','A');
+let analyticsRange=30;
 let activeDayIdx=Math.max(0,new Date().getDay()-1);
 let rtSec=90,rtCur=90,rtRun=false,rtInt=null;
 let calMonth=new Date().getMonth(),calYear=new Date().getFullYear();
 let deferredPrompt=null;
-let autoSyncTimer=null;
 let notifyTimers=[];
+let pendingSessionDayIdx=0;
 
 /* ════════════════════════════════════════════════
    SPLASH
@@ -358,119 +456,12 @@ async function triggerInstall(){
   toast('Install option not offered yet — open this page in Chrome/Edge or use the browser menu.');
 }
 
-/* ════════════════════════════════════════════════
-   GITHUB GIST SYNC
-   ════════════════════════════════════════════════ */
-const GIST_FILE='life-os-data.json';
-const GIST_DESC='Life OS — personal sync data';
-
-async function ghAPI(path,opts={}){
-  const pat=ls('gh_pat');
-  if(!pat)throw new Error('No PAT');
-  const res=await fetch('https://api.github.com'+path,{
-    ...opts,
-    headers:{
-      'Authorization':'token '+pat,
-      'Accept':'application/vnd.github+json',
-      'X-GitHub-Api-Version':'2022-11-28',
-      ...(opts.headers||{}),
-    },
-  });
-  if(!res.ok){
-    const t=await res.text().catch(()=>'');
-    throw new Error('GitHub '+res.status+': '+t.slice(0,120));
-  }
-  return res.json();
-}
-
-async function verifyPAT(pat){
-  const res=await fetch('https://api.github.com/user',{
-    headers:{'Authorization':'token '+pat,'Accept':'application/vnd.github+json'}
-  });
-  if(!res.ok)throw new Error('Invalid token ('+res.status+')');
-  return res.json();
-}
-
-async function findOrCreateGist(){
-  const existingId=ls('gh_gist_id');
-  if(existingId){
-    try{await ghAPI('/gists/'+existingId);return existingId;}catch{}
-  }
-  let page=1;
-  while(page<6){
-    const list=await ghAPI('/gists?per_page=100&page='+page);
-    if(!list.length)break;
-    const found=list.find(g=>g.description===GIST_DESC&&g.files&&g.files[GIST_FILE]);
-    if(found){lsSet('gh_gist_id',found.id);return found.id;}
-    if(list.length<100)break;
-    page++;
-  }
-  const gist=await ghAPI('/gists',{
-    method:'POST',
-    body:JSON.stringify({
-      description:GIST_DESC,public:false,
-      files:{[GIST_FILE]:{content:JSON.stringify({version:1,createdAt:new Date().toISOString(),data:{}},null,2)}}
-    }),
-  });
-  lsSet('gh_gist_id',gist.id);
-  return gist.id;
-}
-
-async function syncToGist(silent=false){
-  const pat=ls('gh_pat');
-  if(!pat)return;
-  setSyncStatus('syncing');
-  try{
-    const id=await findOrCreateGist();
-    const payload={version:1,lastSync:new Date().toISOString(),data:collectSyncData()};
-    await ghAPI('/gists/'+id,{
-      method:'PATCH',
-      body:JSON.stringify({files:{[GIST_FILE]:{content:JSON.stringify(payload,null,2)}}}),
-    });
-    localStorage.setItem('last_synced',new Date().toISOString());
-    setSyncStatus('ok');
-    if(!silent)toast('✓ Synced to GitHub Gist');
-  }catch(e){
-    console.warn('Sync failed:',e);
-    setSyncStatus('err');
-    if(!silent)toast('Sync failed: '+e.message.slice(0,60));
-  }
-}
-
-async function syncFromGist(silent=false){
-  const pat=ls('gh_pat');
-  if(!pat){toast('Connect a PAT first.');return;}
-  setSyncStatus('syncing');
-  try{
-    const id=await findOrCreateGist();
-    const gist=await ghAPI('/gists/'+id);
-    const file=gist.files&&gist.files[GIST_FILE];
-    if(!file||!file.content){setSyncStatus('ok');if(!silent)toast('Empty gist — nothing to restore.');return;}
-    const payload=JSON.parse(file.content);
-    if(payload&&payload.data)applySyncData(payload.data);
-    localStorage.setItem('last_synced',new Date().toISOString());
-    setSyncStatus('ok');
-    if(!silent)toast('✓ Restored from cloud');
-    rerenderAll();
-  }catch(e){
-    console.warn('Restore failed:',e);
-    setSyncStatus('err');
-    if(!silent)toast('Restore failed: '+e.message.slice(0,60));
-  }
-}
-
-function scheduleAutoSync(){
-  if(!ls('gh_pat'))return;
-  clearTimeout(autoSyncTimer);
-  autoSyncTimer=setTimeout(()=>syncToGist(true),3000);
-}
-
 function setSyncStatus(state){
   const c=document.getElementById('syncChip');const t=document.getElementById('syncTxt');
   if(!c||!t)return;
   c.classList.remove('ok','err','syncing');
   if(state==='syncing'){c.classList.add('syncing');t.textContent='Syncing…';}
-  else if(state==='ok'){c.classList.add('ok');t.textContent=relativeTime(ls('last_synced'));}
+  else if(state==='ok'){c.classList.add('ok');t.textContent=relativeTime(localStorage.getItem('last_synced'));}
   else if(state==='err'){c.classList.add('err');t.textContent='Sync error';}
   else{t.textContent='Offline';}
 }
@@ -485,53 +476,23 @@ function relativeTime(iso){
   return Math.floor(s/86400)+'d ago';
 }
 
-async function handleConnectPAT(){
-  const inp=document.getElementById('patInp');
-  const msg=document.getElementById('authMsg');
-  const pat=inp.value.trim();
-  if(!pat){msg.textContent='Paste your token first.';msg.className='auth-msg err';return;}
-  msg.textContent='Verifying token…';msg.className='auth-msg';
-  try{
-    const user=await verifyPAT(pat);
-    localStorage.setItem('gh_pat',JSON.stringify(pat));
-    localStorage.setItem('gh_user',JSON.stringify(user.login));
-    localStorage.setItem('gh_avatar',JSON.stringify(user.avatar_url||''));
-    msg.textContent='✓ Connected as @'+user.login+'. Setting up gist…';msg.className='auth-msg ok';
-    await findOrCreateGist();
-    const id=ls('gh_gist_id');
-    const gist=await ghAPI('/gists/'+id);
-    const file=gist.files&&gist.files[GIST_FILE];
-    let hadRemote=false;
-    if(file&&file.content){
-      try{const p=JSON.parse(file.content);if(p&&p.data&&Object.keys(p.data).length){hadRemote=true;applySyncData(p.data);}}catch{}
-    }
-    msg.textContent=hadRemote?'✓ Existing data restored from cloud.':'✓ New gist ready. Syncing your local data…';
-    if(!hadRemote)await syncToGist(true);
-    setTimeout(()=>{
-      document.getElementById('authModal').classList.remove('show');
-      updateUserUI();
-      rerenderAll();
-      toast(hadRemote?'Welcome back, @'+user.login:'Welcome, @'+user.login);
-    },800);
-  }catch(e){
-    msg.textContent='✗ '+e.message;msg.className='auth-msg err';
-  }
-}
-
 function updateUserUI(){
-  const user=ls('gh_user');const av=ls('gh_avatar');
+  const email=fbUser?fbUser.email:localStorage.getItem('fb_email');
   const spu=document.getElementById('spUser');
-  if(user){
+  if(email){
     spu.style.display='flex';
-    document.getElementById('spUserName').textContent='@'+user;
-    document.getElementById('spUserAv').src=av||'./icons/icon.svg';
+    document.getElementById('spUserName').textContent=email;
+    document.getElementById('spUserSub').textContent='Signed in via Firebase';
+    const av=document.getElementById('spUserAv');
+    if(av){av.style.display='none';}
   }else{
     spu.style.display='none';
   }
-  setSyncStatus(ls('gh_pat')?'ok':'');
+  setSyncStatus(fbUser?'ok':'');
   const ls_t=document.getElementById('lastSyncTxt');
-  if(ls_t)ls_t.textContent=ls('gh_pat')?('Last: '+relativeTime(ls('last_synced'))):'Not connected';
-  document.getElementById('syncToggle').classList.toggle('on',!!ls('gh_pat'));
+  if(ls_t)ls_t.textContent=email?('Last: '+relativeTime(localStorage.getItem('last_synced'))):'Not connected';
+  const fbSyncToggle=document.getElementById('fbSyncToggle');
+  if(fbSyncToggle)fbSyncToggle.classList.toggle('on',!!fbUser);
 }
 
 /* ════════════════════════════════════════════════
@@ -634,12 +595,22 @@ function getAllChecks(){
   return [...DEF_CHECKS,...getCustomChecks().map(l=>({id:'c_'+btoa(unescape(encodeURIComponent(l))).replace(/[^a-zA-Z0-9]/g,'').slice(0,12),l,e:'✅',custom:true}))];
 }
 
+function getCustomMeals(){return ls('custom_meals',[]);}
+
 function getConsumedMacros(){
   const data=ls('daily:'+today,{});
   let P=0,C=0,F=0,K=0;
   MEALS.forEach((m,mi)=>m.items.forEach((it,ii)=>{
     if(data[`m${mi}_${ii}`]&&it.m){P+=it.m[0];C+=it.m[1];F+=it.m[2];K+=it.m[3];}
   }));
+  getCustomMeals().forEach((cm,i)=>{
+    if(data['cm_'+i]){
+      P+=Number(cm.P)||0;
+      C+=Number(cm.C)||0;
+      F+=Number(cm.F)||0;
+      K+=Number(cm.K)||0;
+    }
+  });
   return{P,C,F,K};
 }
 
@@ -763,6 +734,71 @@ function renderTraining(){
       </div>
     </div>`).join('');
   bindCursor();
+  renderSessionHistory();
+}
+
+/* ════════════════════════════════════════════════
+   SESSION LOGGER
+   ════════════════════════════════════════════════ */
+function renderSessionHistory(){
+  const el=document.getElementById('sessionHistory');if(!el)return;
+  const sessions=[];
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i);
+    if(k&&k.startsWith('session:')){const v=ls(k);if(v)sessions.push(v);}
+  }
+  sessions.sort((a,b)=>b.date.localeCompare(a.date));
+  const recent=sessions.slice(0,7);
+  if(!recent.length){
+    el.innerHTML='<div class="session-empty">No sessions logged yet. Hit the button above after your workout.</div>';
+    return;
+  }
+  el.innerHTML=recent.map(s=>`
+    <div class="session-item">
+      <span class="session-item-name">${s.split||'Session'} — ${new Date(s.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
+      <span class="session-item-meta">${(s.exercises||[]).filter(e=>e.sets||e.reps||e.weight).length}/${(s.exercises||[]).length} logged</span>
+    </div>`).join('');
+}
+
+function openSessionModal(dayIdx){
+  pendingSessionDayIdx=dayIdx;
+  const day=SPLIT[dayIdx];
+  document.getElementById('sessionModalTitle').textContent='Log: '+day.split+' Day — '+day.day;
+  const msgEl=document.getElementById('sessionMsg');
+  msgEl.textContent='';msgEl.className='auth-msg';
+  const existing=ls('session:'+today+':'+dayIdx,{});
+  const prevExs=existing.exercises||[];
+  document.getElementById('sessionFormBody').innerHTML=day.exs.map((e,i)=>{
+    const prev=prevExs[i]||{};
+    return`<div class="sess-ex-row">
+      <div class="sess-ex-name">${e.n}</div>
+      <div class="sess-ex-plan">${e.s}</div>
+      <div class="sess-ex-fields">
+        <div class="sess-field"><label>Sets</label><input type="number" min="0" max="20" data-ex="${i}" data-field="sets" placeholder="—" value="${prev.sets||''}"></div>
+        <div class="sess-field"><label>Weight (kg)</label><input type="number" min="0" step="0.5" data-ex="${i}" data-field="weight" placeholder="—" value="${prev.weight||''}"></div>
+        <div class="sess-field"><label>Reps</label><input type="number" min="0" max="100" data-ex="${i}" data-field="reps" placeholder="—" value="${prev.reps||''}"></div>
+        <div class="sess-field"><label>Notes</label><input type="text" data-ex="${i}" data-field="notes" placeholder="e.g. easy" maxlength="30" value="${prev.notes||''}"></div>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('sessionModal').classList.add('show');
+}
+
+function saveSession(){
+  const day=SPLIT[pendingSessionDayIdx];
+  const exercises=day.exs.map((e,i)=>{
+    const row={name:e.n};
+    ['sets','weight','reps','notes'].forEach(f=>{
+      const inp=document.querySelector(`[data-ex="${i}"][data-field="${f}"]`);
+      if(inp)row[f]=inp.value.trim();
+    });
+    return row;
+  });
+  lsSet('session:'+today+':'+pendingSessionDayIdx,{dayIdx:pendingSessionDayIdx,split:day.split,date:today,exercises});
+  document.getElementById('sessionModal').classList.remove('show');
+  renderSessionHistory();
+  if(curSec===6)renderProgress();
+  toast('Session saved!');
 }
 
 /* ════════════════════════════════════════════════
@@ -771,12 +807,15 @@ function renderTraining(){
 function renderNutrition(){
   const data=ls('daily:'+today,{});
   const mac=getConsumedMacros();
+  const tgt=getMacroTargets();
   document.getElementById('mTotalKcal').textContent=mac.K;
+  const mTKEl=document.getElementById('mTargetKcal');
+  if(mTKEl)mTKEl.textContent=tgt.K;
   const ringDefs=[
-    {key:'K',name:'Calories',val:mac.K,tgt:MACRO_TARGETS.K,unit:'kcal',c:'#82a4ff'},
-    {key:'P',name:'Protein',val:mac.P,tgt:MACRO_TARGETS.P,unit:'g',c:'#f06fb6'},
-    {key:'C',name:'Carbs',val:mac.C,tgt:MACRO_TARGETS.C,unit:'g',c:'#ffb547'},
-    {key:'F',name:'Fats',val:mac.F,tgt:MACRO_TARGETS.F,unit:'g',c:'#4aeacc'},
+    {key:'K',name:'Calories',val:mac.K,tgt:tgt.K,unit:'kcal',c:'#82a4ff'},
+    {key:'P',name:'Protein',val:mac.P,tgt:tgt.P,unit:'g',c:'#f06fb6'},
+    {key:'C',name:'Carbs',val:mac.C,tgt:tgt.C,unit:'g',c:'#ffb547'},
+    {key:'F',name:'Fats',val:mac.F,tgt:tgt.F,unit:'g',c:'#4aeacc'},
   ];
   const circ=Math.PI*2*28;
   document.getElementById('mrings').innerHTML=ringDefs.map(r=>{
@@ -796,10 +835,10 @@ function renderNutrition(){
     </div>`;
   }).join('');
   const barDefs=[
-    {name:'Protein',val:mac.P,tgt:MACRO_TARGETS.P,unit:'g',cls:'pbar-lime'},
-    {name:'Carbohydrates',val:mac.C,tgt:MACRO_TARGETS.C,unit:'g',cls:'pbar-gold'},
-    {name:'Fats',val:mac.F,tgt:MACRO_TARGETS.F,unit:'g',cls:'pbar-teal'},
-    {name:'Calories',val:mac.K,tgt:MACRO_TARGETS.K,unit:' kcal',cls:'pbar-blue'},
+    {name:'Protein',val:mac.P,tgt:tgt.P,unit:'g',cls:'pbar-lime'},
+    {name:'Carbohydrates',val:mac.C,tgt:tgt.C,unit:'g',cls:'pbar-gold'},
+    {name:'Fats',val:mac.F,tgt:tgt.F,unit:'g',cls:'pbar-teal'},
+    {name:'Calories',val:mac.K,tgt:tgt.K,unit:' kcal',cls:'pbar-blue'},
   ];
   document.getElementById('mbars').innerHTML=barDefs.map(b=>{
     const pct=Math.min(Math.round((b.val/b.tgt)*100),100);
@@ -840,6 +879,35 @@ function renderNutrition(){
       if(e.target.checked)toast('Logged!');
     });
   });
+  const customMeals=getCustomMeals();
+  if(customMeals.length){
+    document.getElementById('meals').innerHTML+=customMeals.map((cm,i)=>`
+      <div class="meal custom-meal">
+        <div class="mhd">
+          <div class="mtn"><span class="mt">${cm.time||'—'}</span><span class="mn2">${cm.name}</span></div>
+          <span class="mkcal">~${cm.K||0} kcal <button class="cm-del" data-i="${i}" title="Remove meal">×</button></span>
+        </div>
+        <div class="mitems">
+          <label class="mi" data-key="cm_${i}">
+            <input type="checkbox" ${data['cm_'+i]?'checked':''}><span class="mit">P:${cm.P||0}g · C:${cm.C||0}g · F:${cm.F||0}g</span>
+          </label>
+        </div>
+      </div>`).join('');
+    document.getElementById('meals').querySelectorAll('.custom-meal .mi').forEach(el=>{
+      el.querySelector('input').addEventListener('change',e=>{
+        const d=ls('daily:'+today,{});d[el.dataset.key]=e.target.checked;lsSet('daily:'+today,d);
+        renderNutrition();renderToday();
+      });
+    });
+    document.getElementById('meals').querySelectorAll('.cm-del').forEach(btn=>{
+      btn.addEventListener('click',e=>{
+        e.stopPropagation();
+        const idx=+btn.dataset.i;
+        const arr=getCustomMeals();arr.splice(idx,1);lsSet('custom_meals',arr);
+        renderNutrition();toast('Custom meal removed.');
+      });
+    });
+  }
   bindCursor();
 }
 
@@ -864,14 +932,20 @@ function renderOutfitPlanner(){
 }
 
 function renderBm(){
-  const ms=ls('bookmarks',[]);const g=document.getElementById('bmgrid');
-  if(!ms.length){g.innerHTML='<div class="bempty">No bookmarks yet. Add your first link above.</div>';return;}
+  const bms=ls('bookmarks',[]);const g=document.getElementById('bmgrid');
+  const filtered = bms.filter(b => {
+    const matchCat = bmCatFilter === 'all' || (b.cat||'other').toLowerCase() === bmCatFilter;
+    const q = bmSearchQuery.toLowerCase();
+    const matchQ = !q || (b.title||'').toLowerCase().includes(q) || (b.url||'').toLowerCase().includes(q);
+    return matchCat && matchQ;
+  });
+  if(!filtered.length){g.innerHTML='<div class="bempty">No bookmarks yet. Add your first link above.</div>';return;}
   const cmap={fitness:'bf',finance:'bn',work:'bw',personal:'bp',other:'bo'};
-  g.innerHTML=ms.map((m,i)=>`
+  g.innerHTML=filtered.map((m,i)=>`
     <div class="bm" data-url="${m.url.replace(/"/g,'&quot;')}">
       <span class="bcat ${cmap[m.cat]||'bo'}">${m.cat}</span>
       <div class="bt2">${m.title}</div><div class="burl">${m.url}</div>
-      <button class="bdel" data-i="${i}">Remove</button>
+      <button class="bdel" data-i="${bms.indexOf(m)}">Remove</button>
     </div>`).join('');
   g.querySelectorAll('.bm').forEach(el=>{
     el.addEventListener('click',e=>{if(e.target.closest('.bdel'))return;window.open(el.dataset.url,'_blank','noopener');});
@@ -943,7 +1017,7 @@ function renderBarChart(){
   const el=document.getElementById('barchart');if(!el)return;
   const allI=getAllChecks().length+MEALS.reduce((s,m)=>s+m.items.length,0);
   el.innerHTML='';
-  for(let i=13;i>=0;i--){
+  for(let i=analyticsRange-1;i>=0;i--){
     const d=new Date();d.setDate(d.getDate()-i);
     const k=d.toISOString().slice(0,10);
     const data=ls('daily:'+k,{});
@@ -956,7 +1030,7 @@ function renderBarChart(){
 }
 
 function renderWeightChart(){
-  const wts=Array.from({length:14},(_,i)=>{const d=new Date();d.setDate(d.getDate()-(13-i));return{d:d.getDate(),v:ls('wt:'+d.toISOString().slice(0,10),null)};});
+  const wts=Array.from({length:analyticsRange},(_,i)=>{const d=new Date();d.setDate(d.getDate()-(analyticsRange-1-i));return{d:d.getDate(),v:ls('wt:'+d.toISOString().slice(0,10),null)};});
   const latestWt=wts.slice().reverse().find(w=>w.v!==null);
   const prev=wts.slice(0,-1).reverse().find(w=>w.v!==null);
   document.getElementById('wtval').textContent=latestWt?latestWt.v.toFixed(1)+' kg':'— kg';
@@ -1034,7 +1108,7 @@ function renderAnalytics(){
 function renderAnTop(){
   let total=0,active=0;
   const dayPcts=[];const dowMap={};
-  for(let i=29;i>=0;i--){
+  for(let i=analyticsRange-1;i>=0;i--){
     const d=new Date();d.setDate(d.getDate()-i);
     const k=d.toISOString().slice(0,10);
     const pct=dayCompletion(k);
@@ -1058,7 +1132,7 @@ function renderAnTop(){
     document.getElementById('anBestDaySub').textContent='no data yet';
   }
   const habitCounts={};
-  for(let i=29;i>=0;i--){
+  for(let i=analyticsRange-1;i>=0;i--){
     const d=new Date();d.setDate(d.getDate()-i);
     const data=ls('daily:'+d.toISOString().slice(0,10),{});
     Object.entries(data).forEach(([k,v])=>{if(v&&!k.startsWith('m'))habitCounts[k]=(habitCounts[k]||0)+1;});
@@ -1134,7 +1208,7 @@ function renderAnSpark(){
   sp.innerHTML='';
   let max=1;
   const vals=[];
-  for(let i=29;i>=0;i--){
+  for(let i=analyticsRange-1;i>=0;i--){
     const d=new Date();d.setDate(d.getDate()-i);
     const pct=dayCompletion(d.toISOString().slice(0,10));
     vals.push(pct);
@@ -1154,7 +1228,7 @@ function renderAnSpark(){
 function renderAnInsights(){
   const out=[];
   const data30=[];
-  for(let i=29;i>=0;i--){
+  for(let i=analyticsRange-1;i>=0;i--){
     const d=new Date();d.setDate(d.getDate()-i);
     data30.push({d,pct:dayCompletion(d.toISOString().slice(0,10))});
   }
@@ -1353,6 +1427,18 @@ function init(){
     toast('Schedule updated to '+(curP==='A'?'7–9 AM':'8–10 AM')+' badminton');
   });
 
+  document.getElementById('bmSearch')?.addEventListener('input', e => {
+    bmSearchQuery = e.target.value;
+    renderBm();
+  });
+  document.getElementById('bmCats')?.addEventListener('click', e => {
+    const btn = e.target.closest('.bm-cat-btn');
+    if (!btn) return;
+    bmCatFilter = btn.dataset.cat;
+    document.querySelectorAll('.bm-cat-btn').forEach(b => b.classList.toggle('active', b === btn));
+    renderBm();
+  });
+
   // Bookmark add
   document.getElementById('bmadd').addEventListener('click',()=>{
     let url=document.getElementById('bmu').value.trim();
@@ -1407,18 +1493,56 @@ function init(){
   if(isStandalone())lsSet('pwa_installed',true);
   refreshInstallUI();
 
-  // ── Auth modal ──
-  document.getElementById('patSubmit').addEventListener('click',handleConnectPAT);
-  document.getElementById('patInp').addEventListener('keydown',e=>{if(e.key==='Enter')handleConnectPAT();});
-  document.getElementById('patSkip').addEventListener('click',()=>{
-    document.getElementById('authModal').classList.remove('show');
-    toast('Running in offline mode.');
-  });
+  // ── Auth modal (Firebase) ──
+  const fbAuthSubmit=document.getElementById('fbAuthSubmit');
+  const fbAuthMode=document.getElementById('fbAuthMode');
+  const fbAuthSkip=document.getElementById('fbAuthSkip');
+  const fbConfigBtn=document.getElementById('fbConfigBtn');
+  const fbSaveConfigBtn=document.getElementById('fbSaveConfigBtn');
+  let fbCreateMode=false;
+  if(fbAuthSubmit){
+    fbAuthSubmit.addEventListener('click',()=>{
+      const email=document.getElementById('fbEmailInp').value.trim();
+      const pass=document.getElementById('fbPassInp').value;
+      if(!email||!pass){document.getElementById('authMsg').textContent='Enter email and password.';document.getElementById('authMsg').className='auth-msg err';return;}
+      if(!localStorage.getItem('fb_config')){
+        document.getElementById('authMsg').textContent='Paste your Firebase config first.';
+        document.getElementById('authMsg').className='auth-msg err';
+        document.getElementById('fbConfigArea').style.display='block';
+        return;
+      }
+      handleFbSignIn(email,pass,fbCreateMode);
+    });
+  }
+  if(fbAuthMode){
+    fbAuthMode.addEventListener('click',()=>{
+      fbCreateMode=!fbCreateMode;
+      fbAuthSubmit.textContent=fbCreateMode?'Create Account':'Sign In';
+      fbAuthMode.textContent=fbCreateMode?'Already have an account? Sign in':'New here? Create account';
+    });
+  }
+  if(fbAuthSkip){
+    fbAuthSkip.addEventListener('click',()=>{
+      localStorage.setItem('pwa_dismissed_auth',JSON.stringify(true));
+      document.getElementById('authModal').classList.remove('show');
+    });
+  }
+  if(fbConfigBtn){
+    fbConfigBtn.addEventListener('click',()=>{
+      const area=document.getElementById('fbConfigArea');
+      area.style.display=area.style.display==='none'?'block':'none';
+    });
+  }
+  if(fbSaveConfigBtn){
+    fbSaveConfigBtn.addEventListener('click',()=>{
+      handleFbConfig(document.getElementById('fbConfigTextarea').value.trim());
+    });
+  }
 
   // ── Header buttons ──
   document.getElementById('syncChip').addEventListener('click',()=>{
-    if(!ls('gh_pat')){document.getElementById('authModal').classList.add('show');return;}
-    syncToGist();
+    if(!fbUser){document.getElementById('authModal').classList.add('show');return;}
+    fbAttachListener();toast('↻ Syncing…');
   });
   document.getElementById('settingsBtn').addEventListener('click',()=>{
     document.getElementById('settingsPanel').classList.add('show');
@@ -1427,27 +1551,26 @@ function init(){
 
   // ── Settings panel ──
   document.getElementById('spClose').addEventListener('click',()=>document.getElementById('settingsPanel').classList.remove('show'));
-  document.getElementById('syncToggle').addEventListener('click',()=>{
-    if(ls('gh_pat')){
-      if(confirm('Disconnect from GitHub Gist? Local data stays put.')){
-        lsRm('gh_pat');lsRm('gh_gist_id');lsRm('gh_user');lsRm('gh_avatar');
-        setSyncStatus('');updateUserUI();toast('Disconnected.');
-      }
-    }else{
+  const fbSyncToggle=document.getElementById('fbSyncToggle');
+  if(fbSyncToggle){
+    fbSyncToggle.addEventListener('click',()=>{
+      if(fbUser){handleFbSignOut();}
+      else{document.getElementById('authModal').classList.add('show');}
+    });
+  }
+  const fbSyncNowBtn=document.getElementById('fbSyncNowBtn');
+  if(fbSyncNowBtn){
+    fbSyncNowBtn.addEventListener('click',()=>{
+      if(!fbUser){toast('Not signed in.');return;}
+      fbAttachListener();toast('↻ Syncing…');
+    });
+  }
+  const fbConfigSettingsBtn=document.getElementById('fbConfigSettingsBtn');
+  if(fbConfigSettingsBtn){
+    fbConfigSettingsBtn.addEventListener('click',()=>{
       document.getElementById('authModal').classList.add('show');
-    }
-  });
-  document.getElementById('syncNowBtn').addEventListener('click',()=>{
-    if(!ls('gh_pat')){document.getElementById('authModal').classList.add('show');return;}
-    syncToGist();
-  });
-  document.getElementById('restoreBtn').addEventListener('click',()=>{
-    if(!ls('gh_pat')){document.getElementById('authModal').classList.add('show');return;}
-    if(confirm('Restore data from cloud? This will overwrite local data.'))syncFromGist();
-  });
-  document.getElementById('connectGistBtn').addEventListener('click',()=>{
-    document.getElementById('authModal').classList.add('show');
-  });
+    });
+  }
 
   // ── Notifications ──
   const notifyToggle=document.getElementById('notifyToggle');
@@ -1472,9 +1595,9 @@ function init(){
   document.getElementById('exportAllBtn').addEventListener('click',exportJSON);
   document.getElementById('clearLocalBtn').addEventListener('click',()=>{
     if(confirm('Clear ALL local data? This cannot be undone (cloud backup preserved if connected).')){
-      const pat=ls('gh_pat'),gid=ls('gh_gist_id'),user=ls('gh_user'),av=ls('gh_avatar');
+      const fbCfg=localStorage.getItem('fb_config'),fbUid=localStorage.getItem('fb_uid'),fbEmail=localStorage.getItem('fb_email');
       localStorage.clear();
-      if(pat){localStorage.setItem('gh_pat',JSON.stringify(pat));localStorage.setItem('gh_gist_id',JSON.stringify(gid));localStorage.setItem('gh_user',JSON.stringify(user));localStorage.setItem('gh_avatar',JSON.stringify(av));}
+      if(fbCfg){localStorage.setItem('fb_config',fbCfg);localStorage.setItem('fb_uid',fbUid||'');localStorage.setItem('fb_email',fbEmail||'');}
       toast('Local data cleared.');setTimeout(()=>location.reload(),800);
     }
   });
@@ -1483,35 +1606,106 @@ function init(){
   document.getElementById('anCalPrev').addEventListener('click',()=>{calMonth--;if(calMonth<0){calMonth=11;calYear--;}renderAnCal();});
   document.getElementById('anCalNext').addEventListener('click',()=>{calMonth++;if(calMonth>11){calMonth=0;calYear++;}renderAnCal();});
   document.getElementById('exCSV').addEventListener('click',exportCSV);
-  document.getElementById('exJSON').addEventListener('click',exportJSON);
+  const exJSON=document.getElementById('exJSON');
+  if(exJSON){exJSON.addEventListener('click',()=>{
+    const data=collectSyncData();
+    const blob=new Blob([JSON.stringify({exportedAt:new Date().toISOString(),user:fbUser?fbUser.email:null,data},null,2)],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='life-os-backup.json';a.click();
+    toast('JSON exported.');
+  });}
   document.getElementById('exShare').addEventListener('click',copySummary);
-  document.getElementById('exBackup').addEventListener('click',()=>{
-    if(!ls('gh_pat')){document.getElementById('authModal').classList.add('show');return;}
-    syncToGist();
-  });
+  const exBackup=document.getElementById('exBackup');
+  if(exBackup){exBackup.addEventListener('click',()=>{
+    if(!fbUser){document.getElementById('authModal').classList.add('show');return;}
+    fbAttachListener();toast('↻ Force syncing…');
+  });}
+
+  // Session logger
+  const sessModal=document.getElementById('sessionModal');
+  const closeSessionModal=()=>sessModal.classList.remove('show');
+  document.getElementById('logSessionBtn').addEventListener('click',()=>openSessionModal(activeDayIdx));
+  document.getElementById('saveSessionBtn').addEventListener('click',saveSession);
+  document.getElementById('cancelSessionBtn').addEventListener('click',closeSessionModal);
+  document.getElementById('sessionModalClose').addEventListener('click',closeSessionModal);
+  sessModal.addEventListener('click',e=>{if(e.target===sessModal)closeSessionModal();});
+
+  // ── Edit macro targets ──
+  const editTargetsBtn=document.getElementById('editTargetsBtn');
+  const macroTargetsForm=document.getElementById('macroTargetsForm');
+  if(editTargetsBtn&&macroTargetsForm){
+    editTargetsBtn.addEventListener('click',()=>{
+      const isOpen=macroTargetsForm.classList.toggle('open');
+      if(isOpen){
+        const t=getMacroTargets();
+        document.getElementById('tgtP').value=t.P||'';
+        document.getElementById('tgtC').value=t.C||'';
+        document.getElementById('tgtF').value=t.F||'';
+        document.getElementById('tgtK').value=t.K||'';
+      }
+    });
+  }
+  const saveTargetsBtn=document.getElementById('saveTargetsBtn');
+  if(saveTargetsBtn){
+    saveTargetsBtn.addEventListener('click',()=>{
+      const P=parseInt(document.getElementById('tgtP').value)||MACRO_DEFAULTS.P;
+      const C=parseInt(document.getElementById('tgtC').value)||MACRO_DEFAULTS.C;
+      const F=parseInt(document.getElementById('tgtF').value)||MACRO_DEFAULTS.F;
+      const K=parseInt(document.getElementById('tgtK').value)||MACRO_DEFAULTS.K;
+      lsSet('macro_targets',{P,C,F,K});
+      document.getElementById('macroTargetsForm').classList.remove('open');
+      renderNutrition();
+      toast('Macro targets updated!');
+    });
+  }
+
+  // ── Add custom meal ──
+  const addCustomMealBtn=document.getElementById('addCustomMealBtn');
+  const customMealForm=document.getElementById('customMealForm');
+  if(addCustomMealBtn&&customMealForm){
+    addCustomMealBtn.addEventListener('click',()=>customMealForm.classList.toggle('open'));
+  }
+  const saveCustomMealBtn=document.getElementById('saveCustomMealBtn');
+  if(saveCustomMealBtn){
+    saveCustomMealBtn.addEventListener('click',()=>{
+      const name=document.getElementById('cmName').value.trim();
+      if(!name){toast('Meal name required.');return;}
+      const meal={
+        name,
+        time:document.getElementById('cmTime').value.trim()||'—',
+        P:Number(document.getElementById('cmP').value)||0,
+        C:Number(document.getElementById('cmC').value)||0,
+        F:Number(document.getElementById('cmF').value)||0,
+        K:Number(document.getElementById('cmK').value)||0,
+      };
+      const arr=getCustomMeals();arr.push(meal);lsSet('custom_meals',arr);
+      ['cmName','cmTime','cmP','cmC','cmF','cmK'].forEach(id=>document.getElementById(id).value='');
+      document.getElementById('customMealForm').classList.remove('open');
+      renderNutrition();
+      toast('Custom meal added!');
+    });
+  }
 
   // ── Renders ──
   renderToday();renderSched();renderTraining();renderNutrition();renderOutfitPlanner();renderBm();
   initTimer();setTimeout(bindCursor,300);setTimeout(moveOrb,2000);
 
-  // ── First-time: show auth modal if no PAT and never dismissed ──
-  if(!ls('gh_pat')&&!ls('pwa_dismissed_auth',false)){
-    setTimeout(()=>{document.getElementById('authModal').classList.add('show');},5500);
-  }else if(ls('gh_pat')){
-    updateUserUI();
-    // Background sync from cloud on load
-    setTimeout(()=>syncFromGist(true),500);
+  // ── Firebase restore from stored config ──
+  const storedFbConfig=localStorage.getItem('fb_config');
+  if(storedFbConfig){
+    try{initFirebase(JSON.parse(storedFbConfig));}catch(e){console.warn('Firebase restore failed:',e);}
+  }else{
+    const area=document.getElementById('fbConfigArea');
+    if(area)area.style.display='block';
+    const signArea=document.getElementById('fbSignInArea');
+    if(signArea)signArea.style.display='none';
   }
 
-  // ── Auto-sync on visibility/focus: pull first, then push local changes ──
-  document.addEventListener('visibilitychange',()=>{
-    if(document.visibilityState==='visible'&&ls('gh_pat')){
-      syncFromGist(true).then(()=>syncToGist(true));
-    }
-  });
-
-  // ── Periodic auto-sync every 5 min ──
-  setInterval(()=>{if(ls('gh_pat'))syncToGist(true);},5*60*1000);
+  // ── First-time: show auth modal if no Firebase config and never dismissed ──
+  if(!storedFbConfig&&!ls('pwa_dismissed_auth',false)){
+    setTimeout(()=>{document.getElementById('authModal').classList.add('show');},5500);
+  }else{
+    updateUserUI();
+  }
 
   // ── Schedule notifications ──
   if(ls('notify_enabled',false)&&typeof Notification!=='undefined'&&Notification.permission==='granted'){

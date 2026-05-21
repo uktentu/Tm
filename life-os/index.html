@@ -320,6 +320,32 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
 .rt-go{width:100%;padding:9px;background:linear-gradient(135deg,var(--lime),#a8e028);color:#090909;border:none;border-radius:var(--r);font-size:12px;font-weight:800;cursor:inherit;font-family:inherit;transition:all .2s;}
 .rt-go:hover{transform:translateY(-1px);box-shadow:0 6px 16px -4px rgba(200,255,56,.4);}
 
+/* ── SESSION LOGGER ── */
+.session-bar{display:flex;align-items:flex-start;flex-direction:column;gap:12px;margin-bottom:clamp(14px,2vh,20px);position:relative;z-index:1;}
+.btn-session-log{padding:9px 20px;background:var(--lg);border:1px solid rgba(200,255,56,.3);color:var(--lime);border-radius:var(--r);font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;letter-spacing:.5px;transition:all .2s var(--ease);}
+.btn-session-log:hover{background:var(--lgb);border-color:rgba(200,255,56,.5);}
+.session-history{display:flex;flex-direction:column;gap:6px;width:100%;}
+.session-item{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);padding:10px 14px;font-size:12px;display:flex;justify-content:space-between;align-items:center;gap:12px;}
+.session-item-name{font-weight:700;color:var(--tx);}
+.session-item-meta{font-size:10px;color:var(--t2);font-weight:600;letter-spacing:.5px;text-transform:uppercase;flex-shrink:0;}
+.session-empty{font-size:12px;color:var(--t3);font-style:italic;}
+.session-modal{position:fixed;inset:0;background:rgba(4,4,7,.97);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);z-index:9980;display:none;align-items:center;justify-content:center;padding:clamp(16px,4vw,32px);overflow-y:auto;}
+.session-modal.show{display:flex;}
+.session-modal-card{background:var(--s1);border:1px solid var(--bd2);border-radius:var(--rxl);padding:clamp(20px,3vw,36px);max-width:620px;width:100%;max-height:90vh;overflow-y:auto;position:relative;}
+.session-modal-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid var(--bd);}
+.session-modal-hd h3{font-family:var(--fd);font-size:20px;font-weight:800;letter-spacing:-0.5px;}
+.session-modal-actions{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;}
+.sess-ex-row{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);padding:12px 14px;margin-bottom:8px;}
+.sess-ex-name{font-size:12.5px;font-weight:700;margin-bottom:8px;color:var(--tx);}
+.sess-ex-plan{font-size:10px;color:var(--t2);font-weight:600;letter-spacing:.5px;margin-bottom:8px;}
+.sess-ex-fields{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.sess-field{display:flex;flex-direction:column;gap:3px;}
+.sess-field label{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);}
+.sess-field input{background:rgba(255,255,255,.04);border:1px solid var(--bd);color:var(--tx);padding:7px 10px;border-radius:6px;font-family:inherit;font-size:12px;font-weight:600;transition:border-color .2s;width:100%;box-sizing:border-box;}
+.sess-field input:focus{outline:none;border-color:var(--lime);box-shadow:0 0 0 2px rgba(200,255,56,.1);}
+.sess-field input::placeholder{color:var(--t3);}
+@media(max-width:480px){.sess-ex-fields{grid-template-columns:1fr 1fr;}}
+
 /* ── NUTRITION ── */
 .macro-section{position:relative;z-index:1;margin-bottom:clamp(18px,2.5vw,24px);}
 .macro-hd{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;}
@@ -395,6 +421,10 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
 .op-inp::placeholder{color:var(--t3);}
 
 /* ── BOOKMARKS ── */
+.bm-search-row{padding:0 clamp(16px,3vw,44px) 10px;}
+.bm-cats{display:flex;gap:6px;flex-wrap:wrap;padding:0 clamp(16px,3vw,44px) 12px;}
+.bm-cat-btn{background:var(--s1);border:1px solid var(--bd);border-radius:99px;padding:5px 14px;font-size:11px;font-weight:600;color:var(--t2);cursor:pointer;font-family:inherit;transition:all .2s;}
+.bm-cat-btn.active{background:var(--lg);border-color:rgba(200,255,56,.3);color:var(--lime);}
 .bmadd{display:grid;grid-template-columns:1fr 1fr auto auto;gap:clamp(8px,1.2vw,10px);background:var(--s1);border:1px dashed var(--bd2);border-radius:var(--rl);padding:clamp(14px,2vw,18px);margin-bottom:clamp(16px,2vh,22px);align-items:end;position:relative;z-index:1;}
 .fld{display:flex;flex-direction:column;gap:4px;}
 .fld label{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);}
@@ -463,7 +493,10 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
 .pru{font-size:10px;color:var(--t3);}
 .heat-s{position:relative;z-index:1;}
 .hl{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--t3);margin-bottom:10px;}
-.hg{display:grid;grid-template-columns:repeat(14,1fr);gap:4px;background:var(--s1);border:1px solid var(--bd);border-radius:var(--rl);padding:clamp(14px,2vw,18px);}
+.hg{display:grid;grid-template-columns:repeat(30,1fr);gap:4px;background:var(--s1);border:1px solid var(--bd);border-radius:var(--rl);padding:clamp(14px,2vw,18px);}
+.an-range{display:flex;gap:6px;padding:0 clamp(16px,3vw,44px) 12px;}
+.an-range-btn{background:var(--s1);border:1px solid var(--bd);border-radius:99px;padding:5px 14px;font-size:11px;font-weight:600;color:var(--t2);cursor:pointer;font-family:inherit;transition:all .2s;}
+.an-range-btn.active{background:var(--lg);border-color:rgba(200,255,56,.3);color:var(--lime);}
 .hc{aspect-ratio:1;border-radius:3px;background:rgba(255,255,255,.04);cursor:inherit;transition:transform .2s;}
 .hc[data-l="1"]{background:rgba(200,255,56,.15);}.hc[data-l="2"]{background:rgba(200,255,56,.35);}
 .hc[data-l="3"]{background:rgba(200,255,56,.6);}.hc[data-l="4"]{background:rgba(200,255,56,.9);box-shadow:0 0 6px rgba(200,255,56,.4);}
@@ -538,6 +571,24 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
 .toast{position:fixed;bottom:calc(26px + var(--sa-bot));right:calc(26px + var(--sa-right));background:#111;border:1px solid rgba(200,255,56,.2);color:var(--tx);padding:10px 16px;border-radius:var(--r);font-size:12.5px;font-weight:500;z-index:2000;transform:translateY(60px);opacity:0;transition:all .35s var(--eb);max-width:320px;}
 .toast.show{transform:translateY(0);opacity:1;}
 
+/* ── CUSTOM MEALS & TARGETS ── */
+.macro-edit-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:clamp(12px,1.5vh,16px);}
+.macro-targets-form{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);padding:14px;margin-bottom:12px;display:none;}
+.macro-targets-form.open{display:block;}
+.macro-targets-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px;}
+.custom-meal-form{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);padding:14px;margin-top:12px;display:none;}
+.custom-meal-form.open{display:block;}
+.custom-meal-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
+.mf-field{display:flex;flex-direction:column;gap:3px;}
+.mf-lbl{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);}
+.mf-inp{background:rgba(255,255,255,.04);border:1px solid var(--bd);color:var(--tx);padding:7px 10px;border-radius:6px;font-family:inherit;font-size:12px;font-weight:600;transition:border-color .2s;width:100%;box-sizing:border-box;}
+.mf-inp:focus{outline:none;border-color:var(--lime);box-shadow:0 0 0 2px rgba(200,255,56,.1);}
+.mf-inp::placeholder{color:var(--t3);}
+.meal.custom-meal .mhd{border-left:2px solid var(--lime);padding-left:10px;}
+.cm-del{background:none;border:none;color:var(--red);font-size:14px;cursor:pointer;padding:0 4px;opacity:.6;font-family:inherit;transition:opacity .2s;}
+.cm-del:hover{opacity:1;}
+@media(max-width:600px){.macro-targets-grid{grid-template-columns:1fr 1fr;}.custom-meal-grid{grid-template-columns:1fr;}}
+
 /* ── RESPONSIVE ── */
 @media(max-width:1280px){.today-extra{grid-template-columns:1fr 1fr;}.principles{grid-template-columns:1fr;}.an-top{grid-template-columns:repeat(2,1fr);}}
 @media(max-width:1024px){.t-grid{grid-template-columns:1fr;}.clock{font-size:clamp(52px,10vw,80px);}.today-extra{grid-template-columns:1fr 1fr 1fr;}.prog-top,.charts-row,.wt-row{grid-template-columns:1fr;}.op-grid{grid-template-columns:repeat(4,1fr);}.an-mid{grid-template-columns:1fr;}}
@@ -576,23 +627,38 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
 <!-- ══ AUTH MODAL ══ -->
 <div class="auth-modal" id="authModal">
   <div class="auth-card">
-    <div class="auth-eyebrow">🔐 Cloud Sync Setup</div>
-    <h2>Sync Your Data <span class="hi">Across Devices</span></h2>
-    <p>Life OS uses a private GitHub Gist to back up and sync your data. Your progress, habits, and logs travel with you to any device.</p>
-    <div class="auth-steps">
-      <strong style="color:var(--tx);">Setup in 30 seconds:</strong>
-      <ol>
-        <li>Open <a href="https://github.com/settings/tokens/new?scopes=gist&description=Life%20OS%20Sync" target="_blank" rel="noopener">GitHub → Generate token</a></li>
-        <li>Scope: only <code>gist</code> is needed</li>
-        <li>Expiration: pick <code>No expiration</code> or 1 year</li>
-        <li>Copy the token (starts with <code>ghp_…</code> or <code>github_pat_…</code>)</li>
-        <li>Paste it below</li>
-      </ol>
+    <div class="auth-eyebrow">🔥 Firebase Sync Setup</div>
+    <h2>Sync Across <span class="hi">All Devices</span></h2>
+    <p style="color:var(--t2);font-size:13px;margin-bottom:18px;">Sign in with the same email on all your devices for instant live sync.</p>
+
+    <!-- Config paste area (shown when no config exists) -->
+    <div id="fbConfigArea" style="display:none;margin-bottom:16px;">
+      <p style="font-size:12px;color:var(--t2);margin-bottom:8px;">Paste your Firebase project config JSON:</p>
+      <textarea id="fbConfigTextarea" class="auth-inp" rows="5" placeholder='{"apiKey":"...","authDomain":"...","databaseURL":"...","projectId":"..."}'
+        style="height:auto;font-size:11px;font-family:monospace;resize:vertical;"></textarea>
+      <button class="auth-btn" id="fbSaveConfigBtn" style="margin-top:8px;width:100%;">Save Firebase Config</button>
+      <details style="margin-top:10px;">
+        <summary style="font-size:11px;color:var(--t2);cursor:pointer;">How to get your config?</summary>
+        <ol style="font-size:11px;color:var(--t2);margin-top:8px;padding-left:16px;line-height:1.8;">
+          <li>Go to <a href="https://console.firebase.google.com" target="_blank" style="color:var(--lime);">console.firebase.google.com</a></li>
+          <li>Create a project (free Spark plan)</li>
+          <li>Add a Web App → copy the firebaseConfig object</li>
+          <li>Enable Realtime Database (Build → Realtime Database)</li>
+          <li>Enable Authentication → Email/Password</li>
+        </ol>
+      </details>
     </div>
-    <input class="auth-inp" id="patInp" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off" spellcheck="false"/>
-    <div class="auth-actions">
-      <button class="auth-btn" id="patSubmit">Connect & Sync</button>
-      <button class="auth-btn ghost" id="patSkip">Use Offline Only</button>
+
+    <!-- Sign in area -->
+    <div id="fbSignInArea">
+      <input class="auth-inp" id="fbEmailInp" type="email" placeholder="your@email.com" autocomplete="email"/>
+      <input class="auth-inp" id="fbPassInp" type="password" placeholder="Password (min 6 chars)" autocomplete="current-password" style="margin-top:8px;"/>
+      <div class="auth-actions" style="margin-top:12px;">
+        <button class="auth-btn" id="fbAuthSubmit">Sign In</button>
+        <button class="auth-btn ghost" id="fbAuthSkip">Use Offline Only</button>
+      </div>
+      <button class="auth-mode-link" id="fbAuthMode" style="background:none;border:none;color:var(--lime);font-size:12px;cursor:pointer;text-decoration:underline;font-family:inherit;margin-top:10px;display:block;text-align:center;width:100%;">New here? Create account</button>
+      <button class="auth-mode-link" id="fbConfigBtn" style="background:none;border:none;color:var(--t2);font-size:11px;cursor:pointer;font-family:inherit;margin-top:6px;display:block;text-align:center;width:100%;">&#9881; Paste Firebase config</button>
     </div>
     <div class="auth-msg" id="authMsg"></div>
   </div>
@@ -609,7 +675,7 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
     <img class="sp-user-av" id="spUserAv" alt=""/>
     <div>
       <div class="sp-user-name" id="spUserName">—</div>
-      <div class="sp-user-sub" id="spUserSub">Signed in via GitHub Gist</div>
+      <div class="sp-user-sub" id="spUserSub">Signed in via Firebase</div>
     </div>
   </div>
 
@@ -617,14 +683,13 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
     <div class="sp-stitle">Cloud Sync</div>
     <div class="sp-row">
       <div>
-        <div class="sp-row-lbl">Auto-sync to Gist</div>
-        <div class="sp-row-sub" id="lastSyncTxt">Never synced</div>
+        <div class="sp-row-lbl">Live Firebase Sync</div>
+        <div class="sp-row-sub" id="lastSyncTxt">Not connected</div>
       </div>
-      <button class="sp-toggle" id="syncToggle"></button>
+      <button class="sp-toggle" id="fbSyncToggle"></button>
     </div>
-    <button class="sp-actbtn lime" id="syncNowBtn">↻ Sync Now</button>
-    <button class="sp-actbtn" id="restoreBtn">⬇ Restore from Gist</button>
-    <button class="sp-actbtn" id="connectGistBtn">🔗 Connect / Change Account</button>
+    <button class="sp-actbtn lime" id="fbSyncNowBtn">↻ Force Sync</button>
+    <button class="sp-actbtn" id="fbConfigSettingsBtn">&#9881; Change Firebase Account</button>
   </div>
 
   <div class="sp-section">
@@ -804,6 +869,10 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
           <div class="th-meta-lbl">Exercises</div>
         </div>
       </div>
+      <div class="session-bar">
+        <button class="btn-session-log" id="logSessionBtn">+ Log Today's Session</button>
+        <div class="session-history" id="sessionHistory"></div>
+      </div>
       <div class="dtabs" id="dtabs"></div>
       <div id="daybodies"></div>
       <div class="principles">
@@ -852,7 +921,19 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
       <div class="macro-section">
         <div class="macro-hd">
           <h3>Live Macro Tracking</h3>
-          <div class="macro-total">Total logged: <strong id="mTotalKcal">0</strong> / 2700 kcal</div>
+          <div class="macro-edit-row">
+            <div class="macro-total">Total: <strong id="mTotalKcal">0</strong> / <span id="mTargetKcal">2700</span> kcal</div>
+            <button class="wt-sv" id="editTargetsBtn">Edit Targets</button>
+          </div>
+        </div>
+        <div class="macro-targets-form" id="macroTargetsForm">
+          <div class="macro-targets-grid">
+            <div class="mf-field"><label class="mf-lbl">Protein (g)</label><input class="mf-inp" id="tgtP" type="number" min="0" max="500" placeholder="140"></div>
+            <div class="mf-field"><label class="mf-lbl">Carbs (g)</label><input class="mf-inp" id="tgtC" type="number" min="0" max="1000" placeholder="370"></div>
+            <div class="mf-field"><label class="mf-lbl">Fat (g)</label><input class="mf-inp" id="tgtF" type="number" min="0" max="500" placeholder="75"></div>
+            <div class="mf-field"><label class="mf-lbl">Calories</label><input class="mf-inp" id="tgtK" type="number" min="0" max="10000" placeholder="2700"></div>
+          </div>
+          <button class="wt-sv" id="saveTargetsBtn">Save Targets</button>
         </div>
         <div class="mrings" id="mrings"></div>
       </div>
@@ -874,6 +955,20 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
         </div>
       </div>
       <div class="meals" id="meals"></div>
+      <div style="margin-top:14px;position:relative;z-index:1;">
+        <button class="wt-sv" id="addCustomMealBtn" style="width:100%;padding:10px;">+ Add Custom Meal</button>
+        <div class="custom-meal-form" id="customMealForm">
+          <div class="custom-meal-grid">
+            <div class="mf-field"><label class="mf-lbl">Meal Name</label><input class="mf-inp" id="cmName" placeholder="e.g. Protein Bar" maxlength="40"></div>
+            <div class="mf-field"><label class="mf-lbl">Time (HH:MM)</label><input class="mf-inp" id="cmTime" placeholder="15:00" maxlength="5"></div>
+            <div class="mf-field"><label class="mf-lbl">Protein (g)</label><input class="mf-inp" id="cmP" type="number" min="0" placeholder="20"></div>
+            <div class="mf-field"><label class="mf-lbl">Carbs (g)</label><input class="mf-inp" id="cmC" type="number" min="0" placeholder="30"></div>
+            <div class="mf-field"><label class="mf-lbl">Fat (g)</label><input class="mf-inp" id="cmF" type="number" min="0" placeholder="5"></div>
+            <div class="mf-field"><label class="mf-lbl">Calories</label><input class="mf-inp" id="cmK" type="number" min="0" placeholder="250"></div>
+          </div>
+          <button class="wt-sv" id="saveCustomMealBtn">Save Meal</button>
+        </div>
+      </div>
     </section>
 
     <!-- 05 STYLE -->
@@ -906,6 +1001,17 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
         <h1 class="stitle">Your <span class="hi">Hub</span></h1>
         <p class="ssub">All your Excel sheets, tracking docs, and links — one click away from anywhere.</p>
       </div>
+      <div class="bm-search-row">
+  <input class="ac-inp" id="bmSearch" placeholder="Search bookmarks…" autocomplete="off"/>
+</div>
+<div class="bm-cats" id="bmCats">
+  <button class="bm-cat-btn active" data-cat="all">All</button>
+  <button class="bm-cat-btn" data-cat="fitness">Fitness</button>
+  <button class="bm-cat-btn" data-cat="finance">Finance</button>
+  <button class="bm-cat-btn" data-cat="work">Work</button>
+  <button class="bm-cat-btn" data-cat="personal">Personal</button>
+  <button class="bm-cat-btn" data-cat="other">Other</button>
+</div>
       <div class="bmadd">
         <div class="fld"><label>Title</label><input id="bmt" placeholder="e.g. Diet Tracker"></div>
         <div class="fld"><label>URL</label><input id="bmu" placeholder="https://docs.google.com/..."></div>
@@ -992,6 +1098,13 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
         <p class="ssub">Your data, distilled. Discover when you perform best, what's slipping, and where to focus.</p>
       </div>
 
+      <div class="an-range" id="anRange">
+        <button class="an-range-btn active" data-days="30">30d</button>
+        <button class="an-range-btn" data-days="90">90d</button>
+        <button class="an-range-btn" data-days="180">6m</button>
+        <button class="an-range-btn" data-days="365">1y</button>
+      </div>
+
       <div class="an-top">
         <div class="an-stat"><div class="lbl">30-Day Avg</div><div class="val lime" id="an30">0%</div><div class="sub">completion rate</div></div>
         <div class="an-stat"><div class="lbl">Best Day</div><div class="val" id="anBestDay">—</div><div class="sub" id="anBestDaySub">no data yet</div></div>
@@ -1047,6 +1160,23 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
 <div class="gorb" id="gorb"><div class="obbl" id="obbl">Begin the day.</div><div class="orb"></div></div>
 <div class="toast" id="toast"></div>
 
+<div class="session-modal" id="sessionModal">
+  <div class="session-modal-card">
+    <div class="session-modal-hd">
+      <h3 id="sessionModalTitle">Log Session</h3>
+      <button class="sp-close" id="sessionModalClose">×</button>
+    </div>
+    <div id="sessionFormBody"></div>
+    <div class="session-modal-actions">
+      <button class="auth-btn" id="saveSessionBtn">Save Session</button>
+      <button class="auth-btn ghost" id="cancelSessionBtn">Cancel</button>
+    </div>
+    <div class="auth-msg" id="sessionMsg"></div>
+  </div>
+</div>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="./app.js"></script>
 </body>
 </html>
