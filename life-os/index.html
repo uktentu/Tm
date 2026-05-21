@@ -646,6 +646,29 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
 .sched-field input:focus,.sched-field select:focus,.sched-field textarea:focus{border-color:var(--lime);}
 .sched-field textarea{resize:vertical;min-height:60px;}
 .sched-modal-actions{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;}
+/* ── BODY STATS (Today) ── */
+.body-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(10px,1.5vw,14px);margin-top:clamp(16px,2vh,20px);position:relative;z-index:1;}
+.bs-card{background:var(--s1);border:1px solid var(--bd);border-radius:var(--rl);padding:clamp(14px,2vw,18px);display:flex;flex-direction:column;gap:8px;transition:border-color .2s;}
+.bs-card:hover{border-color:var(--bd2);}
+.water-ring-wrap{position:relative;width:80px;height:80px;margin:6px auto 0;}
+.water-ring{width:80px;height:80px;display:block;}
+.water-ring-pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--fd);font-size:18px;font-weight:800;color:var(--blue);}
+.water-ring-meta{font-size:12px;color:var(--t2);text-align:center;}
+.water-ring-meta strong{color:var(--tx);font-weight:700;}
+.water-actions{display:flex;gap:6px;justify-content:center;margin-top:4px;}
+.water-add-btn{background:rgba(130,164,255,.08);border:1px solid rgba(130,164,255,.22);color:var(--blue);border-radius:99px;padding:5px 11px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;}
+.water-add-btn:hover{background:rgba(130,164,255,.18);}
+.water-edit-btn{background:transparent;border:none;color:var(--t3);cursor:pointer;font-size:13px;font-family:inherit;}
+.sleep-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:end;}
+.sleep-field{display:flex;flex-direction:column;}
+.sleep-field label{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3);margin-bottom:4px;}
+.sleep-field input{background:rgba(255,255,255,.04);border:1px solid var(--bd);border-radius:var(--r);color:var(--tx);font-family:inherit;font-size:12px;padding:6px 9px;outline:none;transition:border-color .2s;color-scheme:dark;}
+.sleep-field input:focus{border-color:var(--lime);}
+.sleep-hours{font-size:12px;color:var(--t2);}.sleep-hours strong{color:var(--lime);font-family:var(--fd);font-size:15px;font-weight:800;}
+@media(max-width:768px){.body-stats{grid-template-columns:1fr;}}
+/* ── PROGRESSIVE OVERLOAD ── */
+.po-suggest{font-size:10px;font-weight:800;color:#090909;background:var(--lime);padding:2px 7px;border-radius:99px;letter-spacing:.5px;margin-left:6px;display:inline-block;}
+.sess-ex-row.has-po{border-left:2px solid var(--lime);padding-left:8px;}
 /* ── HABIT META: cooldown, XP, category, paused ── */
 .ch.locked{opacity:.7;background:rgba(255,180,71,.04);border-color:rgba(255,180,71,.15);}
 .ch.locked .chl{color:var(--t2);}
@@ -909,6 +932,45 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
       <div class="tl-strip">
         <div class="tll">Today's Schedule</div>
         <div class="tlb-wrap" id="tlblocks"></div>
+      </div>
+      <div class="body-stats">
+        <div class="bs-card">
+          <div class="te-lbl">💧 Water Today</div>
+          <div class="water-ring-wrap">
+            <svg viewBox="0 0 80 80" class="water-ring">
+              <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="6"/>
+              <circle id="waterRing" cx="40" cy="40" r="34" fill="none" stroke="#82a4ff" stroke-width="6" stroke-linecap="round" stroke-dasharray="213.6" stroke-dashoffset="213.6" style="transform:rotate(-90deg);transform-origin:center;transition:stroke-dashoffset .5s var(--eo);"/>
+            </svg>
+            <div class="water-ring-pct" id="waterRingPct">0%</div>
+          </div>
+          <div class="water-ring-meta"><strong id="waterMl">0</strong> / <span id="waterGoal">3500</span> ml</div>
+          <div class="water-actions">
+            <button class="water-add-btn" data-add="250">+250</button>
+            <button class="water-add-btn" data-add="500">+500</button>
+            <button class="water-edit-btn" id="waterGoalBtn">⚙</button>
+          </div>
+        </div>
+        <div class="bs-card">
+          <div class="te-lbl">🌙 Last Night's Sleep</div>
+          <div class="sleep-row">
+            <div class="sleep-field"><label>Bed</label><input id="sleepBed" type="time"/></div>
+            <div class="sleep-field"><label>Wake</label><input id="sleepWake" type="time"/></div>
+          </div>
+          <div class="sleep-row" style="margin-top:6px;">
+            <div class="sleep-hours">Slept: <strong id="sleepHours">—</strong></div>
+            <div class="energy-dots" id="sleepQuality" style="gap:4px;"></div>
+          </div>
+        </div>
+        <div class="bs-card">
+          <div class="te-lbl">👟 Steps & Cardio</div>
+          <div class="sleep-row">
+            <div class="sleep-field"><label>Steps</label><input id="stepsInp" type="number" min="0" max="50000" placeholder="8500"/></div>
+            <div class="sleep-field"><label>Cardio min</label><input id="cardioInp" type="number" min="0" max="600" placeholder="30"/></div>
+          </div>
+          <div class="sleep-row" style="margin-top:6px;">
+            <input id="cardioType" type="text" placeholder="Type (run, cycle, walk)" maxlength="30" style="width:100%;background:rgba(255,255,255,.04);border:1px solid var(--bd);border-radius:var(--r);color:var(--tx);font-family:inherit;font-size:12px;padding:6px 9px;outline:none;"/>
+          </div>
+        </div>
       </div>
       <div class="today-extra">
         <div class="te-card">

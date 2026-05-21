@@ -678,6 +678,86 @@ function getDailyXP(date){
   return {earned,total};
 }
 
+/* ── SLEEP / STEPS / WATER ── */
+function yesterdayKey(){const d=new Date();d.setDate(d.getDate()-1);return d.toISOString().slice(0,10);}
+function computeSleepHours(bed,wake){
+  if(!bed||!wake)return 0;
+  const [bh,bm]=bed.split(':').map(Number);
+  const [wh,wm]=wake.split(':').map(Number);
+  let bedMin=bh*60+bm,wakeMin=wh*60+wm;
+  if(wakeMin<bedMin)wakeMin+=1440;
+  return +((wakeMin-bedMin)/60).toFixed(1);
+}
+function getWaterGoal(){return ls('water_goal',3500);}
+function renderWaterRing(){
+  const ml=ls('water:'+today,0);
+  const goal=getWaterGoal();
+  const pct=Math.min(100,Math.round(ml/goal*100));
+  const mlEl=document.getElementById('waterMl');const gEl=document.getElementById('waterGoal');
+  const pEl=document.getElementById('waterRingPct');const rEl=document.getElementById('waterRing');
+  if(mlEl)mlEl.textContent=ml;if(gEl)gEl.textContent=goal;
+  if(pEl)pEl.textContent=pct+'%';
+  if(rEl){const c=2*Math.PI*34;rEl.setAttribute('stroke-dasharray',c.toFixed(1));rEl.setAttribute('stroke-dashoffset',(c*(1-pct/100)).toFixed(1));}
+}
+function renderSleepInputs(){
+  const k=yesterdayKey();
+  const s=ls('sleep:'+k,{});
+  const bedEl=document.getElementById('sleepBed');
+  const wakeEl=document.getElementById('sleepWake');
+  const hEl=document.getElementById('sleepHours');
+  if(bedEl)bedEl.value=s.bed||'';
+  if(wakeEl)wakeEl.value=s.wake||'';
+  if(hEl)hEl.textContent=s.hours?s.hours+'h':'—';
+  const qEl=document.getElementById('sleepQuality');
+  if(qEl&&!qEl.dataset.built){
+    qEl.dataset.built='1';
+    for(let i=1;i<=5;i++){
+      const b=document.createElement('button');
+      b.className='edot'+(s.quality===i?' sel':'');
+      b.textContent=i;
+      b.style.width='22px';b.style.height='22px';b.style.fontSize='10px';
+      b.addEventListener('click',()=>{
+        const cur=ls('sleep:'+yesterdayKey(),{});cur.quality=i;lsSet('sleep:'+yesterdayKey(),cur);
+        qEl.querySelectorAll('.edot').forEach((d,di)=>d.classList.toggle('sel',di+1===i));
+        toast('Sleep quality: '+i+'/5');
+      });
+      qEl.appendChild(b);
+    }
+  }
+}
+function renderStepsInputs(){
+  const s=ls('steps:'+today,{});
+  const sE=document.getElementById('stepsInp');const cE=document.getElementById('cardioInp');const tE=document.getElementById('cardioType');
+  if(sE)sE.value=s.steps||'';
+  if(cE)cE.value=s.cardio_min||'';
+  if(tE)tE.value=s.type||'';
+}
+
+/* ── PROGRESSIVE OVERLOAD ── */
+function getProgressionSuggestion(exName,dayIdx,repRange){
+  const sessions=[];
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i);
+    if(k&&k.startsWith('session:')&&k.endsWith(':'+dayIdx)){
+      const s=ls(k);if(s&&s.exercises)sessions.push(s);
+    }
+  }
+  sessions.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  if(sessions.length<2)return null;
+  const [last,prev]=sessions;
+  const ex1=last.exercises.find(e=>e.name===exName);
+  const ex2=prev.exercises.find(e=>e.name===exName);
+  if(!ex1||!ex2||!ex1.weight||!ex2.weight||!ex1.reps||!ex2.reps)return null;
+  const w1=parseFloat(ex1.weight),w2=parseFloat(ex2.weight);
+  if(isNaN(w1)||isNaN(w2)||w1!==w2)return null;
+  const m=String(repRange||'').match(/(\d+)\s*[-–]\s*(\d+)/);
+  if(!m)return null;
+  const top=parseInt(m[2]);
+  const r1=parseInt(ex1.reps),r2=parseInt(ex2.reps);
+  if(isNaN(r1)||isNaN(r2)||r1<top||r2<top)return null;
+  return {weight:w1+2.5,prevWeight:w1};
+}
+
 let pendingHabitEditId=null;
 function openHabitEdit(habitId){
   pendingHabitEditId=habitId;
@@ -958,12 +1038,14 @@ function openSessionModal(dayIdx){
   const prevExs=existing.exercises||[];
   document.getElementById('sessionFormBody').innerHTML=day.exs.map((e,i)=>{
     const prev=prevExs[i]||{};
-    return`<div class="sess-ex-row">
-      <div class="sess-ex-name">${e.n}</div>
+    const po=getProgressionSuggestion(e.n,dayIdx,e.s);
+    const suggestedWeight=prev.weight||(po?po.weight:'');
+    return`<div class="sess-ex-row${po?' has-po':''}">
+      <div class="sess-ex-name">${e.n}${po?` <span class="po-suggest" title="Hit top of rep range twice — time to add 2.5kg">+${po.weight-po.prevWeight}kg → ${po.weight}kg</span>`:''}</div>
       <div class="sess-ex-plan">${e.s}</div>
       <div class="sess-ex-fields">
         <div class="sess-field"><label>Sets</label><input type="number" min="0" max="20" data-ex="${i}" data-field="sets" placeholder="—" value="${prev.sets||''}"></div>
-        <div class="sess-field"><label>Weight (kg)</label><input type="number" min="0" step="0.5" data-ex="${i}" data-field="weight" placeholder="—" value="${prev.weight||''}"></div>
+        <div class="sess-field"><label>Weight (kg)</label><input type="number" min="0" step="0.5" data-ex="${i}" data-field="weight" placeholder="${po?po.weight:'—'}" value="${suggestedWeight}"></div>
         <div class="sess-field"><label>Reps</label><input type="number" min="0" max="100" data-ex="${i}" data-field="reps" placeholder="—" value="${prev.reps||''}"></div>
         <div class="sess-field"><label>Notes</label><input type="text" data-ex="${i}" data-field="notes" placeholder="e.g. easy" maxlength="30" value="${prev.notes||''}"></div>
       </div>
@@ -2036,6 +2118,7 @@ function init(){
       if(act==='water'){
         const cur=ls('water:'+today,0);
         lsSet('water:'+today,cur+250);
+        renderWaterRing();
         toast('+250 ml water — total '+(cur+250)+' ml today');
       }else if(act==='weight'){
         const v=prompt('Enter today\'s weight (kg):',ls('wt:'+today,'')||'');
@@ -2084,6 +2167,51 @@ function init(){
       edots.appendChild(btn);
     }
   }
+
+  // ── Sleep tracker ──
+  renderSleepInputs();
+  const saveSleep=()=>{
+    const k=yesterdayKey();
+    const cur=ls('sleep:'+k,{});
+    const bed=document.getElementById('sleepBed')?.value||'';
+    const wake=document.getElementById('sleepWake')?.value||'';
+    cur.bed=bed;cur.wake=wake;
+    cur.hours=computeSleepHours(bed,wake);
+    lsSet('sleep:'+k,cur);
+    document.getElementById('sleepHours').textContent=cur.hours?cur.hours+'h':'—';
+  };
+  document.getElementById('sleepBed')?.addEventListener('change',saveSleep);
+  document.getElementById('sleepWake')?.addEventListener('change',saveSleep);
+
+  // ── Steps & cardio ──
+  renderStepsInputs();
+  const saveSteps=()=>{
+    const cur=ls('steps:'+today,{});
+    cur.steps=parseInt(document.getElementById('stepsInp')?.value)||0;
+    cur.cardio_min=parseInt(document.getElementById('cardioInp')?.value)||0;
+    cur.type=document.getElementById('cardioType')?.value.trim()||'';
+    lsSet('steps:'+today,cur);
+  };
+  document.getElementById('stepsInp')?.addEventListener('change',saveSteps);
+  document.getElementById('cardioInp')?.addEventListener('change',saveSteps);
+  document.getElementById('cardioType')?.addEventListener('change',saveSteps);
+
+  // ── Water ring ──
+  renderWaterRing();
+  document.querySelectorAll('.water-add-btn').forEach(b=>{
+    b.addEventListener('click',()=>{
+      const add=parseInt(b.dataset.add);
+      const cur=ls('water:'+today,0);
+      lsSet('water:'+today,cur+add);
+      renderWaterRing();
+      try{navigator.vibrate&&navigator.vibrate(10);}catch{}
+      toast('+'+add+' ml — '+(cur+add)+' ml today');
+    });
+  });
+  document.getElementById('waterGoalBtn')?.addEventListener('click',()=>{
+    const v=prompt('Daily water goal (ml):',getWaterGoal());
+    if(v){const n=parseInt(v);if(n>=500&&n<=10000){lsSet('water_goal',n);renderWaterRing();toast('Goal set: '+n+' ml');}}
+  });
 
   // ── Body Measurements ──
   document.getElementById('logMeasBtn')?.addEventListener('click',()=>{
