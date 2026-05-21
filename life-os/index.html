@@ -294,11 +294,24 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
 /* ── SCHEDULE ── */
 .smeta{display:flex;align-items:center;justify-content:space-between;margin-bottom:clamp(16px,2vh,24px);flex-wrap:wrap;gap:12px;position:relative;z-index:1;}
 .ptxt{font-size:clamp(12px,1.5vw,14px);color:var(--t2);font-weight:500;}
-.pswitch{display:flex;background:var(--s1);border:1px solid var(--bd);border-radius:99px;padding:3px;position:relative;}
-.pswitch::before{content:'';position:absolute;top:3px;bottom:3px;left:3px;width:calc(50% - 3px);background:var(--lg);border:1px solid rgba(200,255,56,.28);border-radius:99px;transition:transform .35s var(--eb);}
-.pswitch[data-p="B"]::before{transform:translateX(100%);}
-.pswitch button{background:none;border:none;color:var(--t2);padding:7px 18px;font-size:11px;font-family:inherit;font-weight:700;cursor:inherit;position:relative;z-index:1;transition:color .2s;letter-spacing:.5px;}
-.pswitch[data-p="A"] button:first-child,.pswitch[data-p="B"] button:last-child{color:var(--lime);}
+.psw-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.psw{display:flex;background:var(--s1);border:1px solid var(--bd);border-radius:99px;padding:3px;gap:2px;flex-wrap:wrap;max-width:100%;}
+.psw-chip{background:transparent;border:none;color:var(--t2);padding:7px 14px;font-size:11px;font-family:inherit;font-weight:700;cursor:pointer;border-radius:99px;transition:all .2s var(--eb);letter-spacing:.4px;white-space:nowrap;}
+.psw-chip:hover{color:var(--tx);background:var(--s2);}
+.psw-chip.active{background:var(--lg);color:var(--lime);border:1px solid rgba(200,255,56,.28);padding:6px 13px;box-shadow:0 0 12px -2px var(--lg);}
+.psw-chip.add{color:var(--lime);font-weight:800;}
+.psw-chip.add:hover{background:var(--lg);}
+.psw-manage{background:transparent;border:1px solid var(--bd);color:var(--t3);font-family:inherit;font-size:11px;font-weight:700;padding:6px 11px;border-radius:99px;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:4px;}
+.psw-manage:hover{color:var(--lime);border-color:var(--bd2);}
+.pm-row{display:flex;gap:6px;align-items:center;margin-bottom:8px;padding:8px;background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);}
+.pm-row input{flex:1;background:rgba(255,255,255,.04);border:1px solid var(--bd);border-radius:var(--r);color:var(--tx);font-family:inherit;font-size:12px;padding:6px 10px;outline:none;transition:border-color .2s;}
+.pm-row input:focus{border-color:var(--lime);}
+.pm-row .pm-meta{font-size:10px;color:var(--t3);font-weight:700;letter-spacing:1px;text-transform:uppercase;flex-shrink:0;}
+.pm-row .pm-del{background:transparent;border:1px solid rgba(255,69,51,.2);color:var(--red);border-radius:var(--r);padding:4px 9px;font-size:11px;font-weight:700;font-family:inherit;cursor:pointer;transition:all .2s;flex-shrink:0;}
+.pm-row .pm-del:hover{background:rgba(255,69,51,.1);}
+.pm-row .pm-del:disabled{opacity:.4;cursor:not-allowed;}
+.pm-row.active{border-color:rgba(200,255,56,.32);background:var(--lg);}
+.pm-divider{height:1px;background:var(--bd);margin:14px 0;}
 .bgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(clamp(240px,30vw,300px),1fr));gap:clamp(8px,1.2vw,12px);position:relative;z-index:1;}
 .blk{background:var(--s1);border:1px solid var(--bd);border-left:2px solid var(--bd2);border-radius:var(--r);padding:clamp(14px,1.8vw,18px);transition:all .2s;}
 .blk:hover{border-color:var(--bd2);border-left-color:var(--lime);transform:translateY(-2px);}
@@ -1277,9 +1290,10 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
         <p class="ssub">Set every alarm shown below. Discipline is decision fatigue — eliminated.</p>
       </div>
       <div class="smeta">
-        <div class="ptxt" id="ptxt">Profile A — Badminton 7–9 AM</div>
-        <div class="pswitch" data-p="A" id="pswitch">
-          <button data-p="A">7–9 AM</button><button data-p="B">8–10 AM</button>
+        <div class="ptxt" id="ptxt">—</div>
+        <div class="psw-row">
+          <div class="psw" id="psw"></div>
+          <button class="psw-manage" id="pswManage" title="Manage schedules">⚙ Manage</button>
         </div>
       </div>
       <div class="bgrid" id="bgrid"></div>
@@ -1925,6 +1939,28 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
     <div class="auth-msg" id="heMsg"></div>
   </div>
 </div>
+<!-- ═══ PROFILE MANAGER ═══ -->
+<div class="sched-modal" id="profileManagerModal">
+  <div class="sched-modal-card" style="max-width:520px;">
+    <div class="sched-modal-hd">
+      <h3>📋 Manage Schedules</h3>
+      <button class="sp-close" id="pmClose">×</button>
+    </div>
+    <p style="font-size:12px;color:var(--t2);margin-bottom:12px;line-height:1.6;">Rename a schedule by editing its name. Click delete to remove (you must keep at least one). Click <strong>+ Create</strong> at the bottom to add a new one.</p>
+    <div id="pmList"></div>
+    <div class="pm-divider"></div>
+    <div class="sched-field"><label>New schedule name</label><input id="pmNewName" placeholder="e.g. Weekend / Travel / Long Day" maxlength="50"></div>
+    <div class="sched-field" style="margin-bottom:14px;">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--tx);">
+        <input type="checkbox" id="pmCloneCur" style="width:auto;margin:0;">
+        Clone blocks from current schedule
+      </label>
+    </div>
+    <button class="auth-btn" id="pmAdd">+ Create Schedule</button>
+    <div class="auth-msg" id="pmMsg"></div>
+  </div>
+</div>
+
 <div class="sched-modal" id="schedModal">
   <div class="sched-modal-card">
     <div class="sched-modal-hd">

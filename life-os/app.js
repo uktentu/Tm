@@ -302,7 +302,7 @@ const today=new Date().toISOString().slice(0,10);
 
 /* Keys that we sync (everything app-data, NOT auth/device-local) */
 const SYNC_KEY_PREFIXES=['daily:','water:','wt:','focus:','pr:','outfit:','journal:','session:','measurements:','schedule:','habit_meta:','habit_last:','habit_paused:','goal:','sleep:','steps:','gratitude:','review:','eating_window:'];
-const SYNC_KEYS_EXACT=['custom_checks','bookmarks','profile','custom_meals','macro_targets','custom_prs','custom_dashboard','habit_categories','water_goal','meal_templates','persona','theme','visible_sections'];
+const SYNC_KEYS_EXACT=['custom_checks','bookmarks','profile','custom_meals','macro_targets','custom_prs','custom_dashboard','habit_categories','water_goal','meal_templates','persona','theme','visible_sections','schedule_list'];
 const LOCAL_ONLY=['last_synced','splash:','pwa_dismissed','fb_config','fb_uid','fb_email','photo:','pwa_installed','pwa_dismissed_auth'];
 
 function collectSyncData(){
@@ -634,7 +634,7 @@ function scheduleAllNotifications(){
   if(!ls('notify_enabled',false))return;
   if(typeof Notification==='undefined'||Notification.permission!=='granted')return;
   const mins=parseInt(ls('notify_min',5))||5;
-  const blocks=PROFILE[curP].blocks;
+  const blocks=getProfile(curP).blocks||[];
   const now=new Date();
   blocks.forEach(b=>{
     const [hh,mm]=b.t.split(':').map(Number);
@@ -1653,12 +1653,97 @@ function renderToday(){
 /* ════════════════════════════════════════════════
    RENDER: SCHEDULE
    ════════════════════════════════════════════════ */
-function getProfile(p){return ls('schedule:'+p,PROFILE[p]);}
+/* ── DYNAMIC SCHEDULE PROFILES ── */
+function getScheduleList(){
+  let list=ls('schedule_list',null);
+  if(!list||!Array.isArray(list)||!list.length){
+    // Migrate from legacy A/B
+    list=[];
+    if(PROFILE.A)list.push({id:'A',label:'Morning A'});
+    if(PROFILE.B)list.push({id:'B',label:'Morning B'});
+    if(!list.length)list.push({id:'A',label:'Schedule A'});
+    lsSet('schedule_list',list);
+  }
+  return list;
+}
+function setScheduleList(list){lsSet('schedule_list',list);}
+function getProfile(p){
+  const fromLs=ls('schedule:'+p,null);
+  if(fromLs)return fromLs;
+  if(PROFILE[p])return PROFILE[p];
+  // Custom profile that has no blocks saved yet — find label
+  const meta=getScheduleList().find(x=>x.id===p);
+  return {name:meta?.label||'Schedule',blocks:[]};
+}
+function addScheduleProfile(label,cloneFromId){
+  const list=getScheduleList();
+  let i=1;while(list.find(x=>x.id==='p'+i))i++;
+  const id='p'+i;
+  const lbl=(label||'').trim()||'New Schedule '+i;
+  list.push({id,label:lbl});
+  setScheduleList(list);
+  const blocks=cloneFromId?JSON.parse(JSON.stringify(getProfile(cloneFromId).blocks||[])):[];
+  lsSet('schedule:'+id,{name:lbl,blocks});
+  return id;
+}
+function renameScheduleProfile(id,newLabel){
+  const list=getScheduleList();
+  const item=list.find(x=>x.id===id);
+  if(!item)return;
+  item.label=newLabel.trim()||item.label;
+  setScheduleList(list);
+  const prof=getProfile(id);
+  if(prof)lsSet('schedule:'+id,{...prof,name:item.label});
+}
+function deleteScheduleProfile(id){
+  const list=getScheduleList();
+  if(list.length<=1)return false;
+  setScheduleList(list.filter(x=>x.id!==id));
+  lsRm('schedule:'+id);
+  if(curP===id){
+    curP=getScheduleList()[0].id;
+    lsSet('profile',curP);
+  }
+  return true;
+}
+
+function renderPswChips(){
+  const wrap=document.getElementById('psw');if(!wrap)return;
+  const list=getScheduleList();
+  wrap.innerHTML='';
+  list.forEach(p=>{
+    const b=document.createElement('button');
+    b.className='psw-chip'+(p.id===curP?' active':'');
+    b.dataset.pid=p.id;
+    b.textContent=p.label;
+    b.title=p.label;
+    b.addEventListener('click',()=>{
+      if(curP===p.id)return;
+      curP=p.id;lsSet('profile',curP);
+      renderPswChips();renderSched();renderToday();
+      if(typeof scheduleAllNotifications==='function')scheduleAllNotifications();
+      toast('Switched to '+p.label);
+    });
+    wrap.appendChild(b);
+  });
+  const add=document.createElement('button');
+  add.className='psw-chip add';
+  add.textContent='+';
+  add.title='Add new schedule';
+  add.addEventListener('click',()=>openProfileManager(true));
+  wrap.appendChild(add);
+}
 
 function renderSched(){
   const prof=getProfile(curP);
-  document.getElementById('ptxt').textContent=prof.name;
-  document.getElementById('bgrid').innerHTML=prof.blocks.map((b,i)=>`
+  renderPswChips();
+  document.getElementById('ptxt').textContent=prof.name||'Schedule';
+  const grid=document.getElementById('bgrid');
+  if(!prof.blocks||!prof.blocks.length){
+    grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:32px 16px;color:var(--t2);font-size:13px;">No blocks yet. Click <strong style="color:var(--lime);">+ Add Block</strong> below to build this schedule.</div>';
+    return;
+  }
+  grid.innerHTML=prof.blocks.map((b,i)=>`
     <div class="blk bt-${b.tag}">
       <div class="btm">${b.t}</div><div class="bna">${b.n}</div><div class="bde">${b.d}</div>
       ${b.a!=='—'?`<div class="bal">${b.a}</div>`:''}
@@ -1667,6 +1752,47 @@ function renderSched(){
   document.querySelectorAll('.blk-edit-btn').forEach(btn=>{
     btn.addEventListener('click',e=>{e.stopPropagation();openSchedModal(+btn.dataset.i);});
   });
+}
+
+function openProfileManager(focusAdd){
+  const modal=document.getElementById('profileManagerModal');if(!modal)return;
+  const list=getScheduleList();
+  const listEl=document.getElementById('pmList');
+  listEl.innerHTML='';
+  list.forEach((p,i)=>{
+    const row=document.createElement('div');
+    row.className='pm-row'+(p.id===curP?' active':'');
+    row.innerHTML=`
+      <input type="text" data-id="${p.id}" value="${p.label.replace(/"/g,'&quot;')}" maxlength="50"/>
+      <span class="pm-meta">${p.id===curP?'ACTIVE':''}</span>
+      <button class="pm-del" data-id="${p.id}" ${list.length<=1?'disabled':''}>Delete</button>
+    `;
+    listEl.appendChild(row);
+  });
+  // Wire rename on blur / Enter
+  listEl.querySelectorAll('input[data-id]').forEach(inp=>{
+    inp.addEventListener('change',()=>{
+      renameScheduleProfile(inp.dataset.id,inp.value);
+      renderPswChips();renderSched();
+      const msgEl=document.getElementById('pmMsg');if(msgEl){msgEl.textContent='Renamed.';msgEl.className='auth-msg ok';setTimeout(()=>{msgEl.textContent='';},1500);}
+    });
+    inp.addEventListener('keydown',e=>{if(e.key==='Enter')inp.blur();});
+  });
+  listEl.querySelectorAll('.pm-del').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const id=btn.dataset.id;
+      const name=getScheduleList().find(x=>x.id===id)?.label||'this schedule';
+      if(!confirm(`Delete "${name}"? All its blocks will be lost.`))return;
+      if(deleteScheduleProfile(id)){
+        openProfileManager(false);renderPswChips();renderSched();toast('Deleted "'+name+'"');
+      }
+    });
+  });
+  document.getElementById('pmNewName').value='';
+  document.getElementById('pmCloneCur').checked=false;
+  document.getElementById('pmMsg').textContent='';
+  modal.classList.add('show');
+  if(focusAdd)setTimeout(()=>document.getElementById('pmNewName').focus(),300);
 }
 
 function openSchedModal(blockIdx){
@@ -2709,8 +2835,11 @@ document.addEventListener('keydown',e=>{
    GLOBAL RE-RENDER
    ════════════════════════════════════════════════ */
 function rerenderAll(){
-  curP=ls('profile','A');
-  document.getElementById('pswitch').dataset.p=curP;
+  // Validate current profile still exists; otherwise fall back to first available
+  const list=getScheduleList();
+  const saved=ls('profile','A');
+  curP=list.find(x=>x.id===saved)?saved:list[0].id;
+  lsSet('profile',curP);
   renderToday();renderSched();renderTraining();renderNutrition();renderOutfitPlanner();renderBm();
   if(curSecId()==="progress")renderProgress();
   if(curSecId()==="analytics")renderAnalytics();
@@ -2726,13 +2855,27 @@ function init(){
   document.getElementById('cdate').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   updateClock();setInterval(updateClock,1000);
 
-  // Profile switch
-  const ps=document.getElementById('pswitch');ps.dataset.p=curP;
-  ps.addEventListener('click',e=>{
-    const b=e.target.closest('[data-p]');if(!b||b===ps)return;
-    curP=b.dataset.p;lsSet('profile',curP);ps.dataset.p=curP;
-    renderSched();renderToday();scheduleAllNotifications();
-    toast('Schedule updated to '+(curP==='A'?'7–9 AM':'8–10 AM')+' badminton');
+  // Profile chips + Manage modal
+  (function ensureValidProfile(){
+    const list=getScheduleList();
+    if(!list.find(x=>x.id===curP)){curP=list[0].id;lsSet('profile',curP);}
+  })();
+  renderPswChips();
+  document.getElementById('pswManage')?.addEventListener('click',()=>openProfileManager(false));
+  const pmModal=document.getElementById('profileManagerModal');
+  const closePm=()=>pmModal.classList.remove('show');
+  document.getElementById('pmClose')?.addEventListener('click',closePm);
+  pmModal?.addEventListener('click',e=>{if(e.target===pmModal)closePm();});
+  document.getElementById('pmAdd')?.addEventListener('click',()=>{
+    const name=document.getElementById('pmNewName').value.trim();
+    if(!name){document.getElementById('pmMsg').textContent='Enter a name.';document.getElementById('pmMsg').className='auth-msg err';return;}
+    const clone=document.getElementById('pmCloneCur').checked;
+    const newId=addScheduleProfile(name,clone?curP:null);
+    curP=newId;lsSet('profile',curP);
+    renderPswChips();renderSched();
+    openProfileManager(false);
+    toast('Created "'+name+'"');
+    if(typeof catReact==='function')catReact('sessionLogged');
   });
 
   document.getElementById('bmSearch')?.addEventListener('input', e => {
