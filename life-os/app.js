@@ -209,7 +209,6 @@ const MEALS=[
 
 const MACRO_DEFAULTS={P:140,C:370,F:75,K:2700};
 function getMacroTargets(){return ls('macro_targets',MACRO_DEFAULTS);}
-const PR_LIFTS=['Bench Press','Deadlift','Squat','Overhead Press','Barbell Row','Pull-Ups'];
 
 /* ── STORAGE ── */
 const ls=(k,fb=null)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):fb;}catch{return fb;}};
@@ -709,7 +708,10 @@ function renderToday(){
       el.classList.toggle('done',e.target.checked);
       renderToday();
       if(curSec===3)renderNutrition();
-      if(e.target.checked)toast(['Stack the win.','That is a Toji move.','Discipline = freedom.'][Math.floor(Math.random()*3)]);
+      if(e.target.checked){
+        try{navigator.vibrate&&navigator.vibrate(15);}catch{}
+        toast(['Stack the win.','That is a Toji move.','Discipline = freedom.','One more brick laid.','Future you thanks you.'][Math.floor(Math.random()*5)]);
+      }
     });
     const delBtn=el.querySelector('.ch-del');
     if(delBtn){
@@ -1830,6 +1832,52 @@ function init(){
       document.getElementById('customMealForm').classList.remove('open');
       renderNutrition();
       toast('Custom meal added!');
+    });
+  }
+
+  // ── Habit Suggestions ──
+  document.querySelectorAll('.hs-sg-chip').forEach(chip=>{
+    chip.addEventListener('click',()=>{
+      const val=chip.dataset.h;
+      const custom=getCustomChecks();
+      if(custom.includes(val)){toast('Already added.');return;}
+      if(custom.length>=15){toast('Maximum 15 custom habits.');return;}
+      custom.push(val);saveCustomChecks(custom);
+      renderToday();toast('Habit added: '+val);
+    });
+  });
+
+  // ── Floating Action Button ──
+  const fab=document.getElementById('fabMain');
+  const fabMenu=document.getElementById('fabMenu');
+  const closeFab=()=>{fab.classList.remove('open');fabMenu.classList.remove('show');};
+  if(fab){
+    fab.addEventListener('click',e=>{
+      e.stopPropagation();
+      const isOpen=fab.classList.toggle('open');
+      fabMenu.classList.toggle('show',isOpen);
+    });
+    document.addEventListener('click',e=>{if(!fabMenu.contains(e.target)&&e.target!==fab)closeFab();});
+    fabMenu.addEventListener('click',e=>{
+      const btn=e.target.closest('.fab-act');if(!btn)return;
+      const act=btn.dataset.act;
+      closeFab();
+      if(act==='water'){
+        const cur=ls('water:'+today,0);
+        lsSet('water:'+today,cur+250);
+        toast('+250 ml water — total '+(cur+250)+' ml today');
+      }else if(act==='weight'){
+        const v=prompt('Enter today\'s weight (kg):',ls('wt:'+today,'')||'');
+        if(v){const n=parseFloat(v);if(!isNaN(n)&&n>=30&&n<=250){lsSet('wt:'+today,n);toast('Weight logged: '+n.toFixed(1)+' kg');if(curSec===6)renderProgress();}else toast('Invalid weight.');}
+      }else if(act==='todayChecks'){
+        document.querySelectorAll('.ndot')[0]?.click();
+        setTimeout(()=>document.getElementById('checks')?.scrollIntoView({behavior:'smooth',block:'center'}),300);
+      }else if(act==='logSession'){
+        openSessionModal(activeDayIdx);
+      }else if(act==='meas'){
+        document.querySelectorAll('.ndot')[6]?.click();
+        setTimeout(()=>{document.getElementById('measForm')?.classList.add('open');document.getElementById('measGrid')?.scrollIntoView({behavior:'smooth',block:'center'});},300);
+      }
     });
   }
 
