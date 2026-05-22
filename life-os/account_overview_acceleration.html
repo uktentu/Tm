@@ -1,0 +1,1843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The 5-to-2 Mandate — Reducing Account Overview Load Time</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,300..900,0..100,0..1&family=Inter+Tight:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #0A0E14;
+  --bg-elev: #11151D;
+  --bg-elev-2: #181D26;
+  --border: #232934;
+  --border-strong: #2F3743;
+  --text: #E8E6E0;
+  --text-mid: #A8A59C;
+  --text-dim: #6B7280;
+  --gold: #F59E0B;
+  --gold-soft: rgba(245, 158, 11, 0.12);
+  --gold-line: rgba(245, 158, 11, 0.35);
+  --teal: #2DD4BF;
+  --teal-soft: rgba(45, 212, 191, 0.10);
+  --teal-line: rgba(45, 212, 191, 0.30);
+  --coral: #F87171;
+  --coral-soft: rgba(248, 113, 113, 0.12);
+  --coral-line: rgba(248, 113, 113, 0.30);
+  --indigo: #818CF8;
+  --indigo-soft: rgba(129, 140, 248, 0.10);
+  --serif: 'Fraunces', Georgia, serif;
+  --sans: 'Inter Tight', -apple-system, BlinkMacSystemFont, sans-serif;
+  --mono: 'JetBrains Mono', 'SF Mono', monospace;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.65;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+
+/* Grain overlay for depth */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 48px; position: relative; z-index: 2; }
+.wrap-narrow { max-width: 880px; margin: 0 auto; padding: 0 48px; position: relative; z-index: 2; }
+
+/* TOP META BAR */
+.topbar {
+  border-bottom: 1px solid var(--border);
+  padding: 16px 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  position: sticky;
+  top: 0;
+  background: rgba(10, 14, 20, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  z-index: 100;
+}
+.topbar .wrap { display: flex; justify-content: space-between; align-items: center; }
+.topbar .left { display: flex; gap: 32px; align-items: center; }
+.topbar .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); display: inline-block; margin-right: 8px; vertical-align: middle; animation: pulse 2.4s ease-in-out infinite; }
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* HERO */
+.hero {
+  padding: 140px 0 120px;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+.hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 800px 400px at 80% 20%, var(--gold-soft) 0%, transparent 60%),
+    radial-gradient(ellipse 600px 300px at 10% 80%, var(--teal-soft) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+.hero .wrap { position: relative; z-index: 2; }
+
+.hero-kicker {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 32px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.hero-kicker::before {
+  content: '';
+  width: 32px;
+  height: 1px;
+  background: var(--gold);
+}
+
+.hero h1 {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(54px, 7vw, 96px);
+  line-height: 0.98;
+  letter-spacing: -0.025em;
+  margin-bottom: 36px;
+  font-variation-settings: 'opsz' 144, 'SOFT' 50;
+}
+.hero h1 em {
+  font-style: italic;
+  color: var(--gold);
+  font-variation-settings: 'opsz' 144, 'SOFT' 100, 'WONK' 1;
+}
+
+.hero-lede {
+  font-family: var(--serif);
+  font-weight: 300;
+  font-size: 22px;
+  line-height: 1.5;
+  color: var(--text-mid);
+  max-width: 720px;
+  margin-bottom: 56px;
+}
+
+.hero-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  border-top: 1px solid var(--border);
+  padding-top: 32px;
+}
+.hero-stats .stat {
+  border-left: 1px solid var(--border);
+  padding: 0 24px;
+}
+.hero-stats .stat:first-child { border-left: none; padding-left: 0; }
+.hero-stats .num {
+  font-family: var(--serif);
+  font-size: 48px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  margin-bottom: 8px;
+  font-variation-settings: 'opsz' 144;
+}
+.hero-stats .num.gold { color: var(--gold); }
+.hero-stats .num.teal { color: var(--teal); }
+.hero-stats .num.coral { color: var(--coral); }
+.hero-stats .label {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+/* SECTIONS */
+section {
+  padding: 100px 0;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+
+.section-num {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.15em;
+  color: var(--text-dim);
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.section-num span {
+  color: var(--gold);
+}
+
+h2 {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(38px, 4.5vw, 58px);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  margin-bottom: 32px;
+  font-variation-settings: 'opsz' 144, 'SOFT' 30;
+  max-width: 900px;
+}
+h2 em { font-style: italic; color: var(--gold); }
+
+h3 {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 28px;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  margin-bottom: 16px;
+  font-variation-settings: 'opsz' 36;
+}
+
+h4 {
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.02em;
+  margin-bottom: 12px;
+}
+
+.section-lede {
+  font-family: var(--serif);
+  font-weight: 300;
+  font-size: 22px;
+  line-height: 1.55;
+  color: var(--text-mid);
+  max-width: 760px;
+  margin-bottom: 64px;
+}
+
+p { margin-bottom: 20px; color: var(--text); }
+p.muted { color: var(--text-mid); }
+strong { font-weight: 600; color: var(--text); }
+em.inline { color: var(--gold); font-style: italic; font-family: var(--serif); }
+code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  background: var(--bg-elev);
+  padding: 2px 7px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  color: var(--text-mid);
+}
+
+a { color: var(--gold); text-decoration: none; border-bottom: 1px solid var(--gold-line); transition: border-color 0.2s; }
+a:hover { border-bottom-color: var(--gold); }
+
+/* DIAGRAM BOXES (current state, target state) */
+.diagram-wrap {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 48px 32px;
+  margin: 48px 0;
+}
+.diagram-wrap svg { width: 100%; height: auto; }
+.diagram-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+}
+.diagram-label .right { color: var(--gold); }
+
+/* LEVER CARDS */
+.lever-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  margin: 48px 0;
+}
+.lever {
+  background: var(--bg-elev);
+  padding: 36px 32px;
+  position: relative;
+  transition: background 0.3s;
+}
+.lever:hover { background: var(--bg-elev-2); }
+.lever-num {
+  font-family: var(--serif);
+  font-size: 64px;
+  font-weight: 400;
+  line-height: 1;
+  color: var(--gold);
+  opacity: 0.6;
+  font-variation-settings: 'opsz' 144, 'WONK' 1;
+  margin-bottom: 24px;
+  font-style: italic;
+}
+.lever h3 {
+  font-size: 22px;
+  font-family: var(--sans);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-bottom: 16px;
+}
+.lever p {
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--text-mid);
+  margin-bottom: 16px;
+}
+.lever .tag {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--teal);
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  margin-top: auto;
+  display: block;
+}
+
+/* TWO-COL */
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+  margin: 48px 0;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .two-col { grid-template-columns: 1fr; gap: 40px; }
+}
+
+/* STACK MAP — Citi tech */
+.stack-map {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg-elev);
+  margin: 48px 0;
+}
+.stack-row {
+  display: contents;
+}
+.stack-cat {
+  background: var(--bg-elev-2);
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+}
+.stack-items {
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.stack-row:last-child .stack-cat,
+.stack-row:last-child .stack-items { border-bottom: none; }
+
+.chip {
+  background: rgba(45, 212, 191, 0.06);
+  border: 1px solid var(--teal-line);
+  color: var(--teal);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  padding: 5px 11px;
+  border-radius: 4px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.chip.gold { background: var(--gold-soft); border-color: var(--gold-line); color: var(--gold); }
+.chip.dim { background: transparent; border-color: var(--border); color: var(--text-mid); }
+.chip.legacy { background: var(--coral-soft); border-color: var(--coral-line); color: var(--coral); }
+
+/* AI MODULE CARDS */
+.ai-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 20px;
+  margin: 48px 0;
+}
+.ai-card {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 32px 28px;
+  position: relative;
+  overflow: hidden;
+}
+.ai-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--indigo) 0%, var(--teal) 100%);
+  opacity: 0.7;
+}
+.ai-card .icon {
+  font-family: var(--serif);
+  font-size: 36px;
+  font-weight: 400;
+  color: var(--indigo);
+  font-style: italic;
+  font-variation-settings: 'opsz' 144, 'WONK' 1;
+  margin-bottom: 16px;
+  line-height: 1;
+}
+.ai-card h4 {
+  font-size: 17px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.ai-card p {
+  font-size: 14px;
+  color: var(--text-mid);
+  line-height: 1.55;
+  margin-bottom: 12px;
+}
+.ai-card .label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+/* TABLE */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 32px 0;
+  font-size: 14.5px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+}
+th {
+  text-align: left;
+  padding: 16px 20px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border-strong);
+  font-weight: 500;
+  background: var(--bg-elev-2);
+}
+td {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+  color: var(--text-mid);
+}
+td:first-child { color: var(--text); font-weight: 500; }
+tr:last-child td { border-bottom: none; }
+.cell-gold { color: var(--gold) !important; font-family: var(--mono); font-size: 13px; }
+.cell-teal { color: var(--teal) !important; font-family: var(--mono); font-size: 13px; }
+
+/* BOTTLENECK CATALOG */
+.bottleneck-list { margin: 48px 0; }
+.bottleneck {
+  display: grid;
+  grid-template-columns: 80px 1fr 200px;
+  gap: 32px;
+  padding: 32px 0;
+  border-bottom: 1px solid var(--border);
+  align-items: start;
+}
+.bottleneck:last-child { border-bottom: none; }
+.bottleneck .bn-num {
+  font-family: var(--serif);
+  font-size: 36px;
+  font-weight: 400;
+  color: var(--coral);
+  font-variation-settings: 'opsz' 144;
+  line-height: 1;
+  font-style: italic;
+}
+.bottleneck .bn-body h4 {
+  font-family: var(--serif);
+  font-size: 21px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  margin-bottom: 10px;
+  color: var(--text);
+}
+.bottleneck .bn-body p {
+  font-size: 14.5px;
+  color: var(--text-mid);
+  margin-bottom: 10px;
+  line-height: 1.6;
+}
+.bottleneck .bn-body p.fix {
+  color: var(--teal);
+  font-size: 13.5px;
+  margin-top: 12px;
+}
+.bottleneck .bn-body p.fix::before {
+  content: '→ ';
+  color: var(--teal);
+}
+.bottleneck .bn-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-end;
+  text-align: right;
+}
+.bottleneck .bn-meta .latency {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--coral);
+  background: var(--coral-soft);
+  padding: 4px 10px;
+  border-radius: 3px;
+  border: 1px solid var(--coral-line);
+}
+.bottleneck .bn-meta .layer {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+@media (max-width: 900px) {
+  .bottleneck { grid-template-columns: 60px 1fr; }
+  .bottleneck .bn-meta { grid-column: 2; align-items: flex-start; text-align: left; margin-top: 8px; }
+}
+
+/* ROADMAP */
+.roadmap { margin: 48px 0; }
+.roadmap-row {
+  display: grid;
+  grid-template-columns: 160px 1fr 180px;
+  gap: 32px;
+  padding: 28px 0;
+  border-bottom: 1px solid var(--border);
+}
+.roadmap-row:last-child { border-bottom: none; }
+.roadmap-time {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+.roadmap-action h4 { margin-bottom: 6px; font-size: 16px; }
+.roadmap-action p { font-size: 14px; color: var(--text-mid); margin: 0; }
+.roadmap-impact {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--teal);
+  text-align: right;
+}
+@media (max-width: 900px) {
+  .roadmap-row { grid-template-columns: 1fr; gap: 8px; }
+  .roadmap-impact { text-align: left; }
+}
+
+/* CASE STUDY */
+.case-study {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 48px;
+  padding: 40px 0;
+  border-bottom: 1px solid var(--border);
+  align-items: start;
+}
+.case-study:last-of-type { border-bottom: none; }
+.case-study .who {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 24px;
+  font-weight: 400;
+  color: var(--gold);
+  font-variation-settings: 'opsz' 36, 'WONK' 1;
+}
+.case-study .who small {
+  display: block;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  font-style: normal;
+  margin-top: 6px;
+}
+.case-study .what p { font-size: 15px; line-height: 1.65; margin-bottom: 14px; }
+.case-study .metric {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--teal);
+  border-left: 2px solid var(--teal);
+  padding-left: 12px;
+  margin: 16px 0;
+}
+@media (max-width: 900px) {
+  .case-study { grid-template-columns: 1fr; gap: 16px; }
+}
+
+/* CALLOUT */
+.callout {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--gold);
+  border-radius: 4px;
+  padding: 28px 32px;
+  margin: 32px 0;
+}
+.callout .label {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 12px;
+}
+.callout p { font-family: var(--serif); font-size: 19px; font-weight: 300; line-height: 1.5; color: var(--text); margin: 0; }
+
+/* CLOSING */
+.closing {
+  padding: 140px 0;
+  text-align: center;
+  background: radial-gradient(ellipse 800px 400px at 50% 50%, var(--gold-soft) 0%, transparent 70%);
+  border-bottom: none;
+}
+.closing h2 {
+  margin: 0 auto 32px;
+  text-align: center;
+  font-size: clamp(40px, 5vw, 64px);
+}
+.closing p {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 300;
+  color: var(--text-mid);
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+/* FOOTER */
+footer {
+  padding: 40px 0;
+  background: var(--bg-elev);
+  border-top: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+footer .wrap { display: flex; justify-content: space-between; align-items: center; }
+
+/* SCROLL-IN ANIMATIONS */
+.reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.7s ease, transform 0.7s ease; }
+.reveal.in { opacity: 1; transform: translateY(0); }
+
+/* SVG diagram colors */
+.svg-box-coral { fill: rgba(248, 113, 113, 0.10); stroke: var(--coral); stroke-width: 0.5; }
+.svg-box-amber { fill: rgba(245, 158, 11, 0.08); stroke: var(--gold); stroke-width: 0.5; }
+.svg-box-teal { fill: rgba(45, 212, 191, 0.08); stroke: var(--teal); stroke-width: 0.5; }
+.svg-box-indigo { fill: rgba(129, 140, 248, 0.08); stroke: var(--indigo); stroke-width: 0.5; }
+.svg-box-gray { fill: rgba(168, 165, 156, 0.06); stroke: var(--border-strong); stroke-width: 0.5; }
+.svg-text { fill: var(--text); font-family: var(--sans); font-size: 13px; font-weight: 500; }
+.svg-text-sub { fill: var(--text-mid); font-family: var(--sans); font-size: 11px; font-weight: 400; }
+.svg-text-coral { fill: var(--coral); }
+.svg-text-teal { fill: var(--teal); }
+.svg-text-amber { fill: var(--gold); }
+.svg-text-indigo { fill: var(--indigo); }
+.svg-arrow { stroke: var(--text-dim); stroke-width: 0.8; fill: none; }
+.svg-arrow-teal { stroke: var(--teal); stroke-width: 0.8; fill: none; }
+
+@media (max-width: 700px) {
+  .wrap, .wrap-narrow { padding: 0 24px; }
+  .hero { padding: 80px 0 60px; }
+  .hero-stats { grid-template-columns: repeat(2, 1fr); gap: 32px; }
+  .hero-stats .stat { border-left: none; padding: 0; }
+  section { padding: 60px 0; }
+  .stack-map { grid-template-columns: 1fr; }
+  .stack-cat { border-right: none; padding: 14px 20px 4px; }
+  .stack-items { padding: 4px 20px 14px; border-bottom: 1px solid var(--border); }
+}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="wrap">
+    <div class="left">
+      <span><span class="dot"></span>Ideathon · Investment Banking Technology</span>
+    </div>
+    <div>Citi · Account Overview Acceleration</div>
+  </div>
+</div>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="wrap">
+    <div class="hero-kicker">The 5-to-2 Mandate</div>
+    <h1>From sluggish<br>to <em>sub-second.</em></h1>
+    <p class="hero-lede">
+      The Account Overview is the most-loaded screen in the bank. Five to ten seconds of dead air is the first thing a private banker, a trader, or an institutional client sees every morning. This is a proposal to fix that — without a platform rewrite — by sequencing five architectural levers that compound to deliver perceived load under two seconds, at peak traffic, without compromising security.
+    </p>
+    <div class="hero-stats">
+      <div class="stat">
+        <div class="num coral">5–10s</div>
+        <div class="label">Today &middot; p95 load</div>
+      </div>
+      <div class="stat">
+        <div class="num gold">&lt; 2s</div>
+        <div class="label">Target &middot; perceived</div>
+      </div>
+      <div class="stat">
+        <div class="num teal">15+</div>
+        <div class="label">Bottlenecks mapped</div>
+      </div>
+      <div class="stat">
+        <div class="num">5</div>
+        <div class="label">Compounding levers</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 1: THE PROBLEM -->
+<section>
+  <div class="wrap-narrow">
+    <div class="section-num"><span>01</span> &nbsp; The shape of the problem</div>
+    <h2>Fifteen fast calls<br>do not make a fast page.</h2>
+    <p class="section-lede">
+      Individual backend APIs respond in under 500ms. Yet the page takes five to ten seconds. The arithmetic is obvious once seen: sequential orchestration, repeated authentication, uncached mainframe reads, and synchronous risk recalculation stack up into a waterfall that no single team owns and no single fix resolves.
+    </p>
+
+    <p>The Account Overview surface in Citi&rsquo;s investment banking context is not a retail balances page. It assembles positions across legal entities, intraday P&amp;L, exposure metrics, recent trades and confirmations, settlement status, FX and cash balances, market data widgets, personalized offers, and increasingly an AI-curated &ldquo;next best action&rdquo; tile. Behind these tiles sit twenty or more dependencies spanning microservices on OpenShift, mainframe systems of record on z/OS DB2, middle-office trade stores, risk engines, and external feeds.</p>
+
+    <p>The five-to-ten-second symptom decomposes cleanly into six contributors. Each is small on its own. Together they are the page.</p>
+
+    <div class="callout">
+      <div class="label">Diagnosis</div>
+      <p>The page is not slow because any one call is slow. It is slow because nothing is done in parallel, nothing is cached at the edge, the mainframe sits on the critical path, and the browser paints nothing until the slowest tile resolves.</p>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 2: BOTTLENECK DIAGRAM -->
+<section>
+  <div class="wrap">
+    <div class="section-num"><span>02</span> &nbsp; Current state map</div>
+    <h2>Where the seconds<br><em>actually</em> live.</h2>
+    <p class="section-lede">A structural view of the request waterfall as it exists today, with the worst contributors highlighted. This is the picture that motivates everything that follows.</p>
+
+    <div class="diagram-wrap">
+      <div class="diagram-label">
+        <span>Current state · request waterfall</span>
+        <span class="right">Cumulative latency 5,000 – 10,000 ms</span>
+      </div>
+      <svg viewBox="0 0 880 580" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Current state architecture showing sequential bottlenecks">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.4" stroke-linecap="round"/>
+          </marker>
+        </defs>
+
+        <rect x="320" y="30" width="240" height="56" rx="6" class="svg-box-gray"/>
+        <text x="440" y="56" class="svg-text" text-anchor="middle">Mobile &middot; web client</text>
+        <text x="440" y="74" class="svg-text-sub" text-anchor="middle">Renders only after all tiles resolve</text>
+        <text x="700" y="62" class="svg-text-sub svg-text-coral">render block ~500ms</text>
+
+        <line x1="440" y1="86" x2="440" y2="118" class="svg-arrow" marker-end="url(#ar)"/>
+
+        <rect x="320" y="118" width="240" height="56" rx="6" class="svg-box-amber"/>
+        <text x="440" y="144" class="svg-text" text-anchor="middle">API gateway &middot; entitlements</text>
+        <text x="440" y="162" class="svg-text-sub" text-anchor="middle">Token validated per service hop</text>
+        <text x="700" y="150" class="svg-text-sub svg-text-amber">~300ms</text>
+
+        <line x1="440" y1="174" x2="440" y2="206" class="svg-arrow" marker-end="url(#ar)"/>
+
+        <rect x="280" y="206" width="320" height="64" rx="6" class="svg-box-coral"/>
+        <text x="440" y="232" class="svg-text svg-text-coral" text-anchor="middle">Account aggregator</text>
+        <text x="440" y="250" class="svg-text-sub" text-anchor="middle">Sequential fan-out, no caching, no batching</text>
+        <text x="700" y="240" class="svg-text-sub svg-text-coral">~3,000ms serialized waits</text>
+
+        <line x1="440" y1="270" x2="440" y2="302" class="svg-arrow" marker-end="url(#ar)"/>
+
+        <rect x="40" y="310" width="140" height="64" rx="6" class="svg-box-amber"/>
+        <text x="110" y="334" class="svg-text" text-anchor="middle">Positions</text>
+        <text x="110" y="352" class="svg-text-sub" text-anchor="middle">z/OS DB2</text>
+        <text x="110" y="367" class="svg-text-sub svg-text-amber" text-anchor="middle">~600ms</text>
+
+        <rect x="200" y="310" width="140" height="64" rx="6" class="svg-box-amber"/>
+        <text x="270" y="334" class="svg-text" text-anchor="middle">Balances</text>
+        <text x="270" y="352" class="svg-text-sub" text-anchor="middle">Core banking</text>
+        <text x="270" y="367" class="svg-text-sub svg-text-amber" text-anchor="middle">~400ms</text>
+
+        <rect x="360" y="310" width="140" height="64" rx="6" class="svg-box-amber"/>
+        <text x="430" y="334" class="svg-text" text-anchor="middle">Trades</text>
+        <text x="430" y="352" class="svg-text-sub" text-anchor="middle">Trade store</text>
+        <text x="430" y="367" class="svg-text-sub svg-text-amber" text-anchor="middle">~500ms</text>
+
+        <rect x="520" y="310" width="140" height="64" rx="6" class="svg-box-coral"/>
+        <text x="590" y="334" class="svg-text svg-text-coral" text-anchor="middle">Risk &middot; P&amp;L</text>
+        <text x="590" y="352" class="svg-text-sub" text-anchor="middle">Sync VaR calc</text>
+        <text x="590" y="367" class="svg-text-sub svg-text-coral" text-anchor="middle">~1,200ms</text>
+
+        <rect x="680" y="310" width="140" height="64" rx="6" class="svg-box-amber"/>
+        <text x="750" y="334" class="svg-text" text-anchor="middle">Offers &middot; FX</text>
+        <text x="750" y="352" class="svg-text-sub" text-anchor="middle">External feeds</text>
+        <text x="750" y="367" class="svg-text-sub svg-text-amber" text-anchor="middle">~700ms</text>
+
+        <line x1="110" y1="374" x2="440" y2="438" class="svg-arrow" marker-end="url(#ar)"/>
+        <line x1="270" y1="374" x2="440" y2="438" class="svg-arrow" marker-end="url(#ar)"/>
+        <line x1="430" y1="374" x2="440" y2="438" class="svg-arrow" marker-end="url(#ar)"/>
+        <line x1="590" y1="374" x2="440" y2="438" class="svg-arrow" marker-end="url(#ar)"/>
+        <line x1="750" y1="374" x2="440" y2="438" class="svg-arrow" marker-end="url(#ar)"/>
+
+        <rect x="240" y="446" width="400" height="56" rx="6" class="svg-box-coral"/>
+        <text x="440" y="470" class="svg-text svg-text-coral" text-anchor="middle">Mainframe &middot; legacy systems of record</text>
+        <text x="440" y="488" class="svg-text-sub" text-anchor="middle">No read cache &middot; batch ETL only &middot; on critical path</text>
+
+        <rect x="40" y="530" width="800" height="36" rx="4" fill="rgba(248,113,113,0.08)" stroke="var(--coral)" stroke-width="0.5"/>
+        <text x="60" y="552" class="svg-text svg-text-coral">End-to-end observed latency</text>
+        <text x="820" y="552" class="svg-text svg-text-coral" text-anchor="end">5,000 – 10,000 ms · p95</text>
+      </svg>
+    </div>
+
+    <p class="muted" style="font-size: 14.5px;">Read this top-down. Every horizontal step is a network hop with its own TLS handshake, entitlement check, and serialization. Every service call below the aggregator is gated by the one before it — the aggregator does not fire call N+1 until call N returns. The mainframe sits on the synchronous critical path, which means every page load is metered against z/OS MIPS.</p>
+  </div>
+</section>
+
+<!-- SECTION 3: FIVE LEVERS -->
+<section>
+  <div class="wrap">
+    <div class="section-num"><span>03</span> &nbsp; The solution, in five levers</div>
+    <h2>Five moves<br>that compound.</h2>
+    <p class="section-lede">Each lever is independently deployable and independently measurable. None of them require a platform rewrite. The constraint says incremental rollout preferred — this is what incremental looks like when designed deliberately.</p>
+
+    <div class="lever-grid">
+      <div class="lever">
+        <div class="lever-num">01</div>
+        <h3>GraphQL BFF for parallel orchestration</h3>
+        <p>A single <code>accountOverview</code> query fans out to all dependencies in parallel via DataLoader-style batching. Fifteen sequential 400ms calls collapse into one parallel batch capped by the slowest individual call.</p>
+        <p>Apollo Federation or Netflix DGS on the Java side keeps the BFF inside the existing service-mesh, OpenShift, and Splunk ecosystems.</p>
+        <span class="tag">Owns: speed &middot; payload shape</span>
+      </div>
+
+      <div class="lever">
+        <div class="lever-num">02</div>
+        <h3>Multi-tier caching with explicit TTL contracts</h3>
+        <p>CDN edge for static and market data. Hazelcast or Gemfire for hot session and position data with sub-15-second TTL. Caffeine for in-process L1. Apollo Client cache for the browser.</p>
+        <p>Each tier has a written staleness contract per data type. Freshness is a product decision, not an accident.</p>
+        <span class="tag">Owns: server load &middot; mainframe MIPS</span>
+      </div>
+
+      <div class="lever">
+        <div class="lever-num">03</div>
+        <h3>Event-driven cache warming via CDC</h3>
+        <p>Kafka or Solace consumes change-data-capture from DB2 and trade stores. Cache writers update Hazelcast ahead of the user&rsquo;s next request. Positions become fresh-when-pushed, not fresh-when-pulled.</p>
+        <p>This is the lever that resolves the speed-versus-freshness tension. Fresh data arrives by event, not by blocking read.</p>
+        <span class="tag">Owns: freshness &middot; staleness windows</span>
+      </div>
+
+      <div class="lever">
+        <div class="lever-num">04</div>
+        <h3>CQRS read replicas and materialized views</h3>
+        <p>A purpose-built read store — PostgreSQL with logical replication for transactional reads, ClickHouse for analytical tiles like intraday P&amp;L curves — holds denormalized account snapshots refreshed by the event stream.</p>
+        <p>Mainframe remains authoritative for writes. Reads short-circuit the legacy path entirely.</p>
+        <span class="tag">Owns: mainframe offload &middot; analytics</span>
+      </div>
+
+      <div class="lever">
+        <div class="lever-num">05</div>
+        <h3>Progressive rendering and streaming UI</h3>
+        <p>The page paints a skeleton in under 200ms. Tiles stream in as data arrives via GraphQL <code>@defer</code> and <code>@stream</code> directives or server-sent events. Positions appear first, then trades, then risk, then offers.</p>
+        <p>This is what gets <em class="inline">perceived</em> load under two seconds, even when a heavy analytical tile genuinely takes three.</p>
+        <span class="tag">Owns: perceived performance</span>
+      </div>
+
+      <div class="lever">
+        <div class="lever-num">06</div>
+        <h3>AI-driven prefetch and personalization</h3>
+        <p>An LLM-backed predictor — running on Citi&rsquo;s R2D2 platform or an analogous internal service — observes the user&rsquo;s pre-login signal and pre-warms the cache for tiles they are statistically likely to request first. For a trader on the FX desk at 7am London, that is positions and overnight P&amp;L. For a private banker, that is client roster and recent transfers.</p>
+        <span class="tag">Owns: personalized speed</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 4: TARGET STATE DIAGRAM -->
+<section>
+  <div class="wrap">
+    <div class="section-num"><span>04</span> &nbsp; Target architecture</div>
+    <h2>The fast path,<br>drawn out.</h2>
+    <p class="section-lede">Same five levers in their final composition. The browser talks to a thin gateway, the gateway talks to a BFF, and the BFF answers most queries from cache before ever touching a backend service or the mainframe.</p>
+
+    <div class="diagram-wrap">
+      <div class="diagram-label">
+        <span>Target state · multi-tier cached, event-warmed</span>
+        <span class="right">Target latency &lt; 2,000 ms · p95</span>
+      </div>
+      <svg viewBox="0 0 880 640" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Target state architecture">
+        <defs>
+          <marker id="ar2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.4" stroke-linecap="round"/>
+          </marker>
+        </defs>
+
+        <rect x="300" y="30" width="280" height="60" rx="6" class="svg-box-teal"/>
+        <text x="440" y="56" class="svg-text" text-anchor="middle">Client &middot; skeleton render in 200ms</text>
+        <text x="440" y="76" class="svg-text-sub" text-anchor="middle">Progressive tile streaming via @defer</text>
+
+        <line x1="440" y1="90" x2="440" y2="118" class="svg-arrow-teal" marker-end="url(#ar2)"/>
+
+        <rect x="40" y="118" width="200" height="56" rx="6" class="svg-box-indigo"/>
+        <text x="140" y="142" class="svg-text" text-anchor="middle">CDN edge &middot; Akamai</text>
+        <text x="140" y="160" class="svg-text-sub" text-anchor="middle">Static, offers, market data</text>
+
+        <rect x="280" y="118" width="200" height="56" rx="6" class="svg-box-indigo"/>
+        <text x="380" y="142" class="svg-text" text-anchor="middle">API gateway &middot; Kong / Apigee</text>
+        <text x="380" y="160" class="svg-text-sub" text-anchor="middle">Cached JWT verify</text>
+
+        <rect x="520" y="118" width="200" height="56" rx="6" class="svg-box-indigo"/>
+        <text x="620" y="142" class="svg-text" text-anchor="middle">WebSocket / SSE</text>
+        <text x="620" y="160" class="svg-text-sub" text-anchor="middle">Live tile push</text>
+
+        <line x1="440" y1="174" x2="440" y2="206" class="svg-arrow-teal" marker-end="url(#ar2)"/>
+
+        <rect x="200" y="206" width="480" height="72" rx="8" class="svg-box-teal"/>
+        <text x="440" y="232" class="svg-text" text-anchor="middle">GraphQL BFF aggregator &middot; Netflix DGS on Java</text>
+        <text x="440" y="252" class="svg-text-sub" text-anchor="middle">Parallel fan-out &middot; DataLoader batching</text>
+        <text x="440" y="268" class="svg-text-sub" text-anchor="middle">@defer + @stream + field-level authorization</text>
+
+        <line x1="280" y1="278" x2="150" y2="312" class="svg-arrow-teal" marker-end="url(#ar2)"/>
+        <line x1="440" y1="278" x2="440" y2="312" class="svg-arrow-teal" marker-end="url(#ar2)"/>
+        <line x1="600" y1="278" x2="730" y2="312" class="svg-arrow-teal" marker-end="url(#ar2)"/>
+
+        <rect x="50" y="312" width="200" height="74" rx="6" class="svg-box-teal"/>
+        <text x="150" y="336" class="svg-text" text-anchor="middle">Hazelcast / Gemfire</text>
+        <text x="150" y="354" class="svg-text-sub" text-anchor="middle">Positions, balances, sessions</text>
+        <text x="150" y="372" class="svg-text-sub svg-text-teal" text-anchor="middle">5 &ndash; 15s TTL</text>
+
+        <rect x="340" y="312" width="200" height="74" rx="6" class="svg-box-amber"/>
+        <text x="440" y="336" class="svg-text" text-anchor="middle">Microservices</text>
+        <text x="440" y="354" class="svg-text-sub" text-anchor="middle">Cold path on cache miss</text>
+        <text x="440" y="372" class="svg-text-sub svg-text-amber" text-anchor="middle">Circuit-breaker guarded</text>
+
+        <rect x="630" y="312" width="200" height="74" rx="6" class="svg-box-teal"/>
+        <text x="730" y="336" class="svg-text" text-anchor="middle">CQRS read replica</text>
+        <text x="730" y="354" class="svg-text-sub" text-anchor="middle">PostgreSQL &middot; ClickHouse</text>
+        <text x="730" y="372" class="svg-text-sub svg-text-teal" text-anchor="middle">Materialized views</text>
+
+        <line x1="150" y1="386" x2="150" y2="436" class="svg-arrow" marker-end="url(#ar2)"/>
+        <line x1="440" y1="386" x2="440" y2="436" class="svg-arrow" marker-end="url(#ar2)"/>
+        <line x1="730" y1="386" x2="730" y2="436" class="svg-arrow" marker-end="url(#ar2)"/>
+
+        <rect x="40" y="438" width="800" height="68" rx="8" class="svg-box-indigo"/>
+        <text x="440" y="464" class="svg-text" text-anchor="middle">Kafka &middot; Solace event stream</text>
+        <text x="440" y="484" class="svg-text-sub" text-anchor="middle">CDC from mainframe &middot; trade events &middot; cache warmers &middot; live UI push</text>
+        <text x="440" y="498" class="svg-text-sub svg-text-indigo" text-anchor="middle">Debezium &middot; AsyncAPI contracts</text>
+
+        <line x1="440" y1="506" x2="440" y2="538" class="svg-arrow" marker-end="url(#ar2)"/>
+
+        <rect x="260" y="540" width="360" height="60" rx="6" class="svg-box-gray"/>
+        <text x="440" y="566" class="svg-text" text-anchor="middle">Mainframe &middot; system of record</text>
+        <text x="440" y="584" class="svg-text-sub" text-anchor="middle">Writes only &middot; async replication outbound</text>
+      </svg>
+    </div>
+
+    <p class="muted" style="font-size: 14.5px;">The mainframe still exists. It still owns the truth. But it no longer participates in the synchronous read path — every read happens against a cache or a replica, refreshed by events. Mainframe MIPS go to writes and to settlement, where they belong.</p>
+  </div>
+</section>
+
+<!-- SECTION 5: TRADE FLOW SPECIFICS -->
+<section>
+  <div class="wrap">
+    <div class="section-num"><span>05</span> &nbsp; Trade flows</div>
+    <h2>The pattern, repeated<br>across the lifecycle.</h2>
+    <p class="section-lede">The Account Overview is the entry point. Users drill from it into pre-trade analytics, execution, and post-trade workflows in seconds. The same architectural pattern set extends to each stage, with stage-specific optimizations layered on top.</p>
+
+    <table>
+      <thead>
+        <tr><th style="width: 18%">Stage</th><th style="width: 32%">What the user does</th><th>Optimization pattern</th><th class="cell-gold" style="width: 22%">Reference benchmark</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Pre-trade</td>
+          <td>Indicative quotes, scenario analytics, RFQ generation</td>
+          <td>WebSocket streaming via FIX FAST or proprietary binary; pre-computed position keying; cached scenario results</td>
+          <td class="cell-teal">Velocity 3.0: 50% faster cold start</td>
+        </tr>
+        <tr>
+          <td>Order entry</td>
+          <td>Single-click execution, RFQ submission, basket entry</td>
+          <td>Edge validation; async credit and limit check; pre-warmed entitlements; idempotency keys</td>
+          <td class="cell-teal">Velocity 3.0: 94% faster placement</td>
+        </tr>
+        <tr>
+          <td>Execution</td>
+          <td>Order routed to venue, fills returned</td>
+          <td>Co-located FIX gateway; optimistic UI on OMS ack; binary protocol on the wire</td>
+          <td class="cell-teal">Velocity 3.0: 71% faster booking</td>
+        </tr>
+        <tr>
+          <td>Post-trade</td>
+          <td>Confirmation, allocation, settlement status, reporting</td>
+          <td>Event push via Kafka and SWIFT GPI subscription; no polling; separate consumer groups for MiFID II / EMIR / Dodd-Frank</td>
+          <td class="cell-teal">Sub-second update on settle event</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- SECTION 6: CLOUD ARCHITECTURE -->
+<section>
+  <div class="wrap">
+    <div class="section-num"><span>06</span> &nbsp; Cloud-native deployment</div>
+    <h2>OpenShift, AWS, GCP &mdash;<br>and the hybrid reality.</h2>
+    <p class="section-lede">Citi operates a hybrid model. Core systems of record stay on-prem. New-build services live on AWS and GCP. The Account Overview spans both. The architecture has to acknowledge that on day one, not as a future migration.</p>
+
+    <div class="two-col">
+      <div>
+        <h3>Compute and orchestration</h3>
+        <p>The BFF runs on OpenShift in the existing on-prem fabric for proximity to authentication and entitlement services. Stateless tile services run on AWS EKS or GCP GKE where elasticity matters more than proximity. Service mesh (Istio) carries identity across the boundary using SPIFFE / SPIRE.</p>
+        <p>Deployment pipelines move from legacy Jenkins to Tekton on OpenShift for cloud-native deploys, with Harness as the orchestration layer above. Lightspeed handles the actual rollout to production. Code lives in GitHub Enterprise.</p>
+      </div>
+      <div>
+        <h3>Storage and data</h3>
+        <p>Mainframe DB2 stays. Aurora PostgreSQL (AWS) or AlloyDB (GCP) becomes the read replica home, with logical replication driven by Debezium CDC. ClickHouse or BigQuery handles analytical tiles — intraday P&amp;L curves, exposure-by-counterparty heatmaps.</p>
+        <p>Object storage for large blobs (statements, confirms, regulatory exports) sits on S3 with cross-region replication. KMS handles encryption keys at rest. The boundary between on-prem and cloud is the Kafka event stream, which is consumed by both.</p>
+      </div>
+    </div>
+
+    <h3 style="margin-top: 48px;">Database sharding and indexing strategy</h3>
+    <p>Account Overview reads are bounded by legal entity, by customer ID, and by trade date. That makes the natural shard key a composite of legal entity and customer ID hash. Range partitioning on trade date sits underneath, which keeps recent activity hot and old activity cold without complicating reads.</p>
+
+    <table>
+      <thead>
+        <tr><th>Data domain</th><th>Shard strategy</th><th>Index strategy</th><th class="cell-gold">Hot data target</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Positions</td>
+          <td>Hash by customer ID &times; legal entity</td>
+          <td>Covering index on (customer_id, symbol); GIN on tag fields</td>
+          <td class="cell-teal">&lt; 50ms read</td>
+        </tr>
+        <tr>
+          <td>Trades</td>
+          <td>Range partition on trade_date, hash sub-shard on customer ID</td>
+          <td>BRIN on trade_date for cold data, BTREE on (customer_id, trade_date DESC) for recent</td>
+          <td class="cell-teal">&lt; 80ms recent reads</td>
+        </tr>
+        <tr>
+          <td>P&amp;L snapshots</td>
+          <td>Materialized in ClickHouse, partitioned by toYYYYMM(snapshot_date)</td>
+          <td>Sparse index on customer_id; aggregation pre-computed</td>
+          <td class="cell-teal">&lt; 100ms aggregate query</td>
+        </tr>
+        <tr>
+          <td>Confirmations &middot; settlements</td>
+          <td>Event-sourced in Kafka, projected to PostgreSQL by customer ID</td>
+          <td>BTREE on (customer_id, status, value_date)</td>
+          <td class="cell-teal">&lt; 60ms status query</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- SECTION 7: EVENT-DRIVEN ARCHITECTURE -->
+<section>
+  <div class="wrap">
+    <div class="section-num"><span>07</span> &nbsp; Event-driven architecture</div>
+    <h2>Eventing turns the<br>tradeoff into a non-issue.</h2>
+    <p class="section-lede">The classic objection to caching in a bank is staleness. The classic answer is short TTLs, which only mitigates the problem. The actual answer is that the cache should be invalidated by the event that changed the data, not by a timer that hopes it has.</p>
+
+    <p>Every write to a system of record &mdash; a trade booked, a settlement confirmed, a position rolled, a wire received &mdash; produces a Kafka event. Cache writers subscribe to those events and update Hazelcast or Gemfire within milliseconds of the underlying change. The BFF reads from cache. The user sees fresh data.</p>
+
+    <p>The event stream is also the broadcast channel to the client. The same Kafka topic that warms the cache also fans out via WebSocket or SSE to every connected session that holds a subscription on that customer or that trade. A settlement confirmation lands as a push, not a poll. A new fill appears on the blotter the moment the exchange acknowledges it.</p>
+
+    <div class="callout">
+      <div class="label">The freshness contract</div>
+      <p>Static data and offers: 30 to 60 seconds via CDN. Balances and positions: 5 to 15 seconds via Hazelcast with event invalidation. Active orders, fills, risk for traders with open positions: pushed via WebSocket, latency measured in single-digit milliseconds.</p>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 8: SSR + FRONTEND -->
+<section>
+  <div class="wrap">
+    <div class="section-num"><span>08</span> &nbsp; Server-side rendering and progressive UI</div>
+    <h2>Paint the page<br>before the data arrives.</h2>
+    <p class="section-lede">A modern bank&rsquo;s front-end stack can render a useful, branded skeleton in two hundred milliseconds. That is the move that converts a five-second wait into a sub-two-second perception.</p>
+
+    <div class="two-col">
+      <div>
+        <h3>The render strategy</h3>
+        <p>The shell of the page &mdash; navigation, layout, tile placeholders, the user&rsquo;s name, the date, the legal entity selector &mdash; is server-rendered on the edge using a thin Next.js or SvelteKit layer. It ships pre-rendered HTML in the first byte.</p>
+        <p>Tile data arrives in subsequent streamed chunks via React Server Components, GraphQL <code>@defer</code> directives, or SSE. Each tile owns its loading state, error boundary, and skeleton.</p>
+      </div>
+      <div>
+        <h3>The micro-frontend boundary</h3>
+        <p>Citi&rsquo;s Velocity 3.0 already proved this pattern in FX trading: micro-frontends let tile teams ship independently. The Account Overview becomes a composition of tiles &mdash; positions, P&amp;L, trades, offers, alerts &mdash; each owned by the team that owns the underlying domain.</p>
+        <p>Module Federation handles runtime composition. Each tile is versioned independently and rolls out behind its own feature flag.</p>
+      </div>
+    </div>
+
+    <h3 style="margin-top: 48px;">Why this clears the &lt; 2s bar</h3>
+    <p>First contentful paint at ~200ms. Largest contentful paint &mdash; the positions tile, typically the most important &mdash; at ~800ms because positions live in Hazelcast hot cache. Trades and balances stream in at ~1.2s. Heavy analytical tiles (risk decomposition, exposure-by-counterparty) stream in by 1.8s. Slow tiles arrive after 2s but the user already has a usable page.</p>
+  </div>
+</section>
+
+<!-- SECTION 9: AI / LLM INTEGRATION -->
+<section>
+  <div class="wrap">
+    <div class="section-num"><span>09</span> &nbsp; AI, LLMs, agents</div>
+    <h2>R2D2, RAG,<br>and the predictive cache.</h2>
+    <p class="section-lede">The most interesting part of this proposal is also the newest. Citi&rsquo;s internal AI platform &mdash; R2D2 and the agent infrastructure being stood up around it &mdash; is not just a feature surface on the Account Overview. It is a performance lever. The cache that is warmed by an LLM prediction does not have a freshness problem.</p>
+
+    <div class="ai-cards">
+      <div class="ai-card">
+        <div class="icon">P</div>
+        <h4>Predictive prefetch</h4>
+        <p>A lightweight model trained on session telemetry predicts the user&rsquo;s next three tiles before they request them. The BFF pre-warms cache entries during the auth round-trip. The tiles are already in Hazelcast by the time the GraphQL query arrives.</p>
+        <span class="label">Lever: speed</span>
+      </div>
+      <div class="ai-card">
+        <div class="icon">R</div>
+        <h4>RAG for the inline assistant</h4>
+        <p>An LLM with retrieval over the user&rsquo;s positions, recent trades, and policy documents answers questions inline. The retrieval index is built off the same Kafka stream that warms the cache &mdash; one event, two consumers, no extra ETL.</p>
+        <span class="label">Lever: surface area</span>
+      </div>
+      <div class="ai-card">
+        <div class="icon">A</div>
+        <h4>Agentic next-best-action</h4>
+        <p>A planning agent observes context (market open, user role, recent activity) and queues actions on the Account Overview: a rebalance suggestion for a portfolio manager, a settlement chase for an operations user, a confirm-pending nudge for a trader.</p>
+        <span class="label">Lever: value density</span>
+      </div>
+      <div class="ai-card">
+        <div class="icon">D</div>
+        <h4>Anomaly-driven cache eviction</h4>
+        <p>An LLM-classified anomaly stream &mdash; built on R2D2 &mdash; identifies when a position or balance has moved enough that the cache should be flushed immediately rather than waiting for the next CDC event. The cache becomes self-correcting under stress.</p>
+        <span class="label">Lever: correctness</span>
+      </div>
+      <div class="ai-card">
+        <div class="icon">Q</div>
+        <h4>Query-shape optimization</h4>
+        <p>The BFF logs every GraphQL query shape. A nightly LLM analysis identifies query patterns that are slow or N+1 and proposes either resolver-level changes or materialized-view refreshes. Performance engineering becomes a continuous, AI-assisted loop.</p>
+        <span class="label">Lever: engineering velocity</span>
+      </div>
+      <div class="ai-card">
+        <div class="icon">G</div>
+        <h4>Governed by policy and audit</h4>
+        <p>Every agent action is logged via the same audit pipeline that handles trade booking. Every RAG retrieval is policy-scoped against the user&rsquo;s entitlements before the LLM sees a token. The audit story is the same one MiFID II already accepts.</p>
+        <span class="label">Lever: compliance posture</span>
+      </div>
+    </div>
+
+    <div class="callout">
+      <div class="label">Why this matters for the page-load problem</div>
+      <p>Three of the six AI modules above are direct performance levers. Predictive prefetch removes the cache miss. Anomaly-driven eviction removes the staleness window. Query-shape optimization removes the slow query before it ever lands in production. AI is not a feature bolted onto the architecture &mdash; it is the architecture&rsquo;s control loop.</p>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 10: CITI TECH STACK -->
+<section>
+  <div class="wrap">
+    <div class="section-num"><span>10</span> &nbsp; Stack alignment</div>
+    <h2>Built on the<br>stack you already run.</h2>
+    <p class="section-lede">Nothing in this proposal requires Citi to adopt a new vendor relationship or a new platform. The mapping below is the existing stack, in the slots it would occupy in the target architecture. Items in coral are explicit deprecation candidates &mdash; not blockers, but the direction of travel.</p>
+
+    <div class="stack-map">
+      <div class="stack-row">
+        <div class="stack-cat">Languages</div>
+        <div class="stack-items">
+          <span class="chip">Java 17 / 21</span>
+          <span class="chip">Python 3.11+</span>
+          <span class="chip">TypeScript</span>
+          <span class="chip dim">Scala (Spark)</span>
+          <span class="chip dim">Kotlin (Android)</span>
+        </div>
+      </div>
+      <div class="stack-row">
+        <div class="stack-cat">Runtime &middot; Orchestration</div>
+        <div class="stack-items">
+          <span class="chip">OpenShift</span>
+          <span class="chip">Docker</span>
+          <span class="chip">Kubernetes</span>
+          <span class="chip dim">AWS EKS</span>
+          <span class="chip dim">GCP GKE</span>
+        </div>
+      </div>
+      <div class="stack-row">
+        <div class="stack-cat">CI / CD</div>
+        <div class="stack-items">
+          <span class="chip legacy">Jenkins (legacy)</span>
+          <span class="chip gold">Tekton</span>
+          <span class="chip gold">Harness</span>
+          <span class="chip gold">Lightspeed</span>
+          <span class="chip">GitHub Enterprise</span>
+        </div>
+      </div>
+      <div class="stack-row">
+        <div class="stack-cat">BFF &middot; API layer</div>
+        <div class="stack-items">
+          <span class="chip gold">Netflix DGS (Java)</span>
+          <span class="chip">Spring Boot</span>
+          <span class="chip">Apollo Federation</span>
+          <span class="chip dim">Kong / Apigee gateway</span>
+        </div>
+      </div>
+      <div class="stack-row">
+        <div class="stack-cat">In-memory cache</div>
+        <div class="stack-items">
+          <span class="chip">Hazelcast</span>
+          <span class="chip">Gemfire (Tanzu)</span>
+          <span class="chip dim">Caffeine (L1)</span>
+          <span class="chip dim">Redis (where adopted)</span>
+        </div>
+      </div>
+      <div class="stack-row">
+        <div class="stack-cat">Eventing</div>
+        <div class="stack-items">
+          <span class="chip">Solace PubSub+</span>
+          <span class="chip">Confluent Kafka</span>
+          <span class="chip dim">Tibco EMS</span>
+          <span class="chip gold">Debezium (CDC)</span>
+        </div>
+      </div>
+      <div class="stack-row">
+        <div class="stack-cat">Databases</div>
+        <div class="stack-items">
+          <span class="chip legacy">DB2 (z/OS, writes)</span>
+          <span class="chip">Oracle</span>
+          <span class="chip">PostgreSQL / Aurora</span>
+          <span class="chip">MongoDB</span>
+          <span class="chip">Cassandra</span>
+          <span class="chip gold">ClickHouse</span>
+        </div>
+      </div>
+      <div class="stack-row">
+        <div class="stack-cat">Observability</div>
+        <div class="stack-items">
+          <span class="chip">Splunk</span>
+          <span class="chip">AppDynamics</span>
+          <span class="chip">Dynatrace</span>
+          <span class="chip gold">OpenTelemetry</span>
+          <span class="chip dim">Datadog RUM</span>
+        </div>
+      </div>
+      <div class="stack-row">
+        <div class="stack-cat">AI &middot; ML</div>
+        <div class="stack-items">
+          <span class="chip">R2D2</span>
+          <span class="chip">Vertex AI</span>
+          <span class="chip">SageMaker</span>
+          <span class="chip gold">RAG (internal embeddings)</span>
+          <span class="chip gold">Agent framework</span>
+        </div>
+      </div>
+      <div class="stack-row">
+        <div class="stack-cat">Front-end</div>
+        <div class="stack-items">
+          <span class="chip">React + Apollo Client</span>
+          <span class="chip">Next.js (SSR)</span>
+          <span class="chip">Module Federation</span>
+          <span class="chip dim">SwiftUI (iOS)</span>
+          <span class="chip dim">Jetpack Compose (Android)</span>
+        </div>
+      </div>
+    </div>
+
+    <p class="muted" style="font-size: 14.5px; margin-top: 16px;">Coral indicates an explicit deprecation candidate. Gold indicates a strategic adoption or expansion. Plain teal indicates existing, in good standing. Dim indicates supporting role.</p>
+  </div>
+</section>
+
+<!-- SECTION 11: PERFORMANCE PROJECTION -->
+<section>
+  <div class="wrap">
+    <div class="section-num"><span>11</span> &nbsp; Projection</div>
+    <h2>The numbers,<br>by lever.</h2>
+    <p class="section-lede">Each lever contributes a measurable portion of the total reduction. Calibrated against published improvements at Citi Velocity 3.0, Capital One, and Wealthsimple.</p>
+
+    <table>
+      <thead>
+        <tr><th style="width: 28%">After lever</th><th class="cell-gold">p95 latency</th><th>Where the time went</th><th class="cell-teal" style="width: 18%">Cumulative win</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Baseline (today)</td>
+          <td class="cell-gold">7,500 ms</td>
+          <td>Sequential calls 3,000 &middot; mainframe 2,200 &middot; risk 1,200 &middot; auth 600 &middot; render 500</td>
+          <td class="cell-teal">&mdash;</td>
+        </tr>
+        <tr>
+          <td>+ GraphQL BFF</td>
+          <td class="cell-gold">3,800 ms</td>
+          <td>Parallel fan-out collapses 3s of serialized waits</td>
+          <td class="cell-teal">&minus; 49%</td>
+        </tr>
+        <tr>
+          <td>+ Hazelcast hot cache</td>
+          <td class="cell-gold">2,400 ms</td>
+          <td>Position and balance reads served from RAM</td>
+          <td class="cell-teal">&minus; 68%</td>
+        </tr>
+        <tr>
+          <td>+ CDC + read replicas</td>
+          <td class="cell-gold">1,900 ms</td>
+          <td>Mainframe removed from synchronous critical path</td>
+          <td class="cell-teal">&minus; 75%</td>
+        </tr>
+        <tr>
+          <td>+ Progressive render</td>
+          <td class="cell-gold">800 ms FCP &middot; 1,700 ms TTI</td>
+          <td>Perceived load decoupled from slowest tile</td>
+          <td class="cell-teal">&minus; 78% perceived</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- SECTION 12: CASE STUDIES -->
+<section>
+  <div class="wrap">
+    <div class="section-num"><span>12</span> &nbsp; Precedent</div>
+    <h2>Banks that<br>did this already.</h2>
+    <p class="section-lede">Nothing in this proposal is speculative. The pattern set has been deployed at scale across multiple banks. The most relevant precedent is Citi&rsquo;s own.</p>
+
+    <div class="case-study">
+      <div class="who">Citi Velocity 3.0<small>FX single-dealer platform</small></div>
+      <div class="what">
+        <p>Citi consolidated its FX trading platforms in 2023 onto a single HTML5, micro-frontend, cloud-native dealer platform. The same architectural pattern set this proposal advocates &mdash; HTML5 streaming libraries, micro-frontends, cloud-native infrastructure &mdash; was already applied successfully to FX trading.</p>
+        <div class="metric">50% faster cold start &middot; 30% faster hot start &middot; 71% faster deal booking &middot; 94% faster order placement response &middot; 65% faster blotter load</div>
+        <p>This is the strongest internal benchmark. The proposal here is to extend the established blueprint to one more surface &mdash; the Account Overview &mdash; with the addition of the BFF, CDC, and AI layers.</p>
+      </div>
+    </div>
+
+    <div class="case-study">
+      <div class="who">CitiDirect<small>Cash and treasury platform</small></div>
+      <div class="what">
+        <p>Citi&rsquo;s broader transformation of CitiDirect from a tightly coupled legacy framework to a microservices-based modular structure is the institutional precedent for moving off batch processing and point-to-point integrations. The Account Overview proposal is a vertical slice of that same transformation philosophy.</p>
+      </div>
+    </div>
+
+    <div class="case-study">
+      <div class="who">National Australia Bank<small>NAB-X &middot; GraphQL BFF</small></div>
+      <div class="what">
+        <p>NAB runs GraphQL in a BFF topology where each miniapp frontend has a paired GraphQL server. Critically, they resolved data through downstream REST APIs rather than directly to data sources &mdash; preserving the security, authentication, and entitlement controls already enforced in the existing API gateway. That is the pattern that satisfies the security-versus-accessibility constraint in this brief without a re-do of auth.</p>
+      </div>
+    </div>
+
+    <div class="case-study">
+      <div class="who">Wealthsimple<small>Hive &middot; centralized GraphQL gateway</small></div>
+      <div class="what">
+        <p>Wealthsimple built a centralized GraphQL gateway on TypeScript and Node.js as an intelligent router orchestrating requests across the service landscape, using schema stitching to unify microservice schemas. Their adoption validates the federation-ready posture this proposal recommends &mdash; start with a single BFF, federate when 3+ teams own subgraphs.</p>
+      </div>
+    </div>
+
+    <div class="case-study">
+      <div class="who">Capital One<small>GraphQL adoption</small></div>
+      <div class="what">
+        <p>Capital One&rsquo;s public analysis frames why BFF and GraphQL win in mobile banking: a single customized endpoint aggregates data from multiple microservices, filters what is needed for the channel, and returns only the necessary data. That is the same payload-shape argument that delivers the second half of the latency reduction in this proposal.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 13: ROADMAP -->
+<section>
+  <div class="wrap">
+    <div class="section-num"><span>13</span> &nbsp; Roadmap</div>
+    <h2>Quick wins first.<br>Architecture second.</h2>
+    <p class="section-lede">Risk minimization is in the brief. The roadmap stages cost and risk: prove perceived performance with low-risk frontend changes first, earn the business case for the BFF, then commit to the architectural work.</p>
+
+    <div class="roadmap">
+      <div class="roadmap-row">
+        <div class="roadmap-time">Week 1 &mdash; 2</div>
+        <div class="roadmap-action">
+          <h4>Real-user monitoring instrumentation</h4>
+          <p>Datadog RUM or Dynatrace beacon on the client. Identify the top three slowest tiles and the top three highest-variance ones. Establish the baseline that everything else is measured against.</p>
+        </div>
+        <div class="roadmap-impact">Diagnostic baseline</div>
+      </div>
+
+      <div class="roadmap-row">
+        <div class="roadmap-time">Week 2 &mdash; 4</div>
+        <div class="roadmap-action">
+          <h4>Skeleton screens and progressive rendering</h4>
+          <p>Pure frontend change. No backend coordination required. Ship to a percentage cohort behind a feature flag.</p>
+        </div>
+        <div class="roadmap-impact">Perceived load &darr; 30 &mdash; 50%</div>
+      </div>
+
+      <div class="roadmap-row">
+        <div class="roadmap-time">Week 3 &mdash; 6</div>
+        <div class="roadmap-action">
+          <h4>Hazelcast cache in front of the worst three reads</h4>
+          <p>TTL-based first, event-invalidation second. Read path only. Backed out via flag if cache hit rate is poor.</p>
+        </div>
+        <div class="roadmap-impact">Server-side latency &darr; 30 &mdash; 40%</div>
+      </div>
+
+      <div class="roadmap-row">
+        <div class="roadmap-time">Week 4 &mdash; 8</div>
+        <div class="roadmap-action">
+          <h4>Parallelize the five worst sequential calls</h4>
+          <p>Inside the existing aggregator. No new service. No new contract. Pure orchestration change.</p>
+        </div>
+        <div class="roadmap-impact">1.5 &mdash; 2 seconds saved</div>
+      </div>
+
+      <div class="roadmap-row">
+        <div class="roadmap-time">Month 3 &mdash; 5</div>
+        <div class="roadmap-action">
+          <h4>GraphQL BFF stood up for one segment</h4>
+          <p>Private banking advisors first. Feature-flagged, cohort-controlled, full A/B comparison against the legacy aggregator.</p>
+        </div>
+        <div class="roadmap-impact">Hits &lt; 2s for cohort</div>
+      </div>
+
+      <div class="roadmap-row">
+        <div class="roadmap-time">Month 4 &mdash; 6</div>
+        <div class="roadmap-action">
+          <h4>CDC from DB2 to Kafka to read replica</h4>
+          <p>Positions and balances first. Removes mainframe from the synchronous read path for those domains.</p>
+        </div>
+        <div class="roadmap-impact">Mainframe MIPS &darr; 15 &mdash; 25%</div>
+      </div>
+
+      <div class="roadmap-row">
+        <div class="roadmap-time">Month 6 &mdash; 12</div>
+        <div class="roadmap-action">
+          <h4>Roll BFF and caching to all segments</h4>
+          <p>Deprecate the legacy aggregator. Move analytical tiles to ClickHouse / BigQuery materialized views.</p>
+        </div>
+        <div class="roadmap-impact">Stable &lt; 2s at p95</div>
+      </div>
+
+      <div class="roadmap-row">
+        <div class="roadmap-time">Month 9 &mdash; 15</div>
+        <div class="roadmap-action">
+          <h4>AI prefetch and RAG inline assistant</h4>
+          <p>R2D2-powered. Predictive cache warming. RAG over the user&rsquo;s positions and policies. Behind explicit consent and audit.</p>
+        </div>
+        <div class="roadmap-impact">Sub-second perceived</div>
+      </div>
+
+      <div class="roadmap-row">
+        <div class="roadmap-time">Month 12 &mdash; 18</div>
+        <div class="roadmap-action">
+          <h4>Agentic next-best-action on the surface</h4>
+          <p>Planning agents propose actions inline. Every action logged, scoped, reversible. Compliance posture from day one.</p>
+        </div>
+        <div class="roadmap-impact">Engagement &uarr; double-digit</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 14: TRADEOFFS -->
+<section>
+  <div class="wrap">
+    <div class="section-num"><span>14</span> &nbsp; Tradeoffs</div>
+    <h2>Where this proposal<br>does not pretend.</h2>
+    <p class="section-lede">Every tradeoff in the brief has a specific resolution. None of them are hand-waved.</p>
+
+    <table>
+      <thead>
+        <tr><th style="width: 25%">Tradeoff</th><th>Resolution</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Speed vs data freshness</td>
+          <td>Resolved by tiering. Each data domain has a written freshness contract. Market data tolerates 30 &mdash; 60s via CDN. Balances and positions tolerate 5 &mdash; 15s via Hazelcast with event invalidation. Active orders, fills, and risk for traders with open positions get push semantics via WebSocket at millisecond latency. The freshness decision is per-domain, not per-page.</td>
+        </tr>
+        <tr>
+          <td>Customer experience vs implementation effort</td>
+          <td>Skeleton plus progressive rendering is the disproportionate first win. Two weeks of frontend work for a 30 &mdash; 50% perceived improvement. Earn the cheap win first, then justify the BFF investment with measured impact and the case study to back it.</td>
+        </tr>
+        <tr>
+          <td>Scalability vs cost</td>
+          <td>Hazelcast at IB volumes is roughly $0.2 &mdash; 0.4M annual incremental for a major segment. CDN cost is offset by reduced backend QPS. The real saving is mainframe MIPS reduction &mdash; every cached read is a DB2 transaction not billed. Typical break-even is 18 months. Kafka for CDC is the largest new cost and the largest strategic lever.</td>
+        </tr>
+        <tr>
+          <td>Optimization vs architectural complexity</td>
+          <td>Apollo Federation introduces real complexity &mdash; schema governance, distributed tracing, query cost analysis. The mitigation is to start with a single non-federated BFF and only federate when three or more teams need to own subgraphs. Premature federation killed projects at other banks. NAB explicitly hasn&rsquo;t done it.</td>
+        </tr>
+        <tr>
+          <td>Security vs accessibility</td>
+          <td>The NAB pattern: keep authentication and entitlements in the existing API gateway and microservices. The BFF resolves data through those gateways, never around them. Add field-level authorization on the GraphQL schema so a misconfigured query cannot exfiltrate. Mask PII at the BFF, not the client. No new auth surface; reduced auth surface.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- SECTION 15: BUSINESS IMPACT -->
+<section>
+  <div class="wrap">
+    <div class="section-num"><span>15</span> &nbsp; Impact</div>
+    <h2>Why this matters<br>at the desk level.</h2>
+    <p class="section-lede">The brief asks for business impact and feasibility. The case is concrete and quantifiable.</p>
+
+    <div class="hero-stats" style="border-top: none; padding-top: 0;">
+      <div class="stat">
+        <div class="num gold">~$1.5M</div>
+        <div class="label">Per desk, annual<br>trader-productivity recovery</div>
+      </div>
+      <div class="stat">
+        <div class="num teal">10 &mdash; 25%</div>
+        <div class="label">Mainframe MIPS<br>reduction from caching</div>
+      </div>
+      <div class="stat">
+        <div class="num">+NPS</div>
+        <div class="label">Single-digit improvement<br>(Velocity 3.0 precedent)</div>
+      </div>
+      <div class="stat">
+        <div class="num teal">2x</div>
+        <div class="label">Engagement depth<br>on the post-load surface</div>
+      </div>
+    </div>
+
+    <p style="margin-top: 48px;">For a single FX desk doing two hundred logins per day across fifty traders, dropping five seconds to one and a half saves approximately thirty hours of cumulative wait per week. At fully-loaded investment-banking labor cost, that is in the order of $1.5M per desk per year. Multiply by the number of desks. The business case is not the page load. The business case is the time the desk gets back.</p>
+
+    <p>For institutional and private banking clients, faster surfaces correlate with deeper sessions and higher product engagement. Citi&rsquo;s own Velocity 3.0 results &mdash; double-digit improvements across booking, placement, and blotter operations &mdash; established that the rule applies on the wholesale side, not just retail.</p>
+
+    <p>For operational resilience, circuit breakers and cache fallbacks mean that a mainframe slowdown degrades to stale-but-readable instead of a failed page. The architecture is more available than the architecture it replaces.</p>
+
+    <p>For regulatory posture, event-sourced trade and position data improves audit replay. MiFID II and EMIR queries hit the read replica without touching production. The compliance case is not weaker; it is stronger.</p>
+  </div>
+</section>
+
+<!-- SECTION 16: BOTTLENECK CATALOG -->
+<section>
+  <div class="wrap">
+    <div class="section-num"><span>16</span> &nbsp; The catalog</div>
+    <h2>Every bottleneck,<br>named.</h2>
+    <p class="section-lede">A complete enumeration of the contributors to the five-to-ten-second observed latency. Each one is independently addressable. The right column is the lever from section three that retires it.</p>
+
+    <div class="bottleneck-list">
+
+      <div class="bottleneck">
+        <div class="bn-num">01</div>
+        <div class="bn-body">
+          <h4>Sequential API orchestration (the waterfall)</h4>
+          <p>The aggregator awaits call N before firing call N+1. Fifteen calls at 400ms each serialize to six seconds. By a wide margin the largest single contributor.</p>
+          <p class="fix">Lever 1 &middot; GraphQL BFF with DataLoader-style batching turns the waterfall into a single parallel batch.</p>
+        </div>
+        <div class="bn-meta">
+          <div class="latency">+ 3,000 ms</div>
+          <div class="layer">Orchestration</div>
+        </div>
+      </div>
+
+      <div class="bottleneck">
+        <div class="bn-num">02</div>
+        <div class="bn-body">
+          <h4>Repeated authentication and entitlement checks</h4>
+          <p>JWT or SAML re-validation and per-service entitlement lookups against an IAM mainframe add 80 &mdash; 200ms per service hop. Fifteen hops compounds dramatically.</p>
+          <p class="fix">JWT verification cached at the gateway; entitlements pre-resolved once per session at the BFF, then attached as a signed context to downstream calls.</p>
+        </div>
+        <div class="bn-meta">
+          <div class="latency">+ 600 ms</div>
+          <div class="layer">Identity</div>
+        </div>
+      </div>
+
+      <div class="bottleneck">
+        <div class="bn-num">03</div>
+        <div class="bn-body">
+          <h4>Uncached mainframe DB2 reads</h4>
+          <p>Every page load hits z/OS DB2 for positions and settlements. No edge cache. No materialized view. Each read is 200 &mdash; 800ms and billed in MIPS.</p>
+          <p class="fix">Hazelcast hot cache plus PostgreSQL read replica refreshed by Debezium CDC. Mainframe leaves the synchronous read path.</p>
+        </div>
+        <div class="bn-meta">
+          <div class="latency">+ 2,200 ms</div>
+          <div class="layer">Data</div>
+        </div>
+      </div>
+
+      <div class="bottleneck">
+        <div class="bn-num">04</div>
+        <div class="bn-body">
+          <h4>Synchronous risk and P&amp;L recalculation</h4>
+          <p>VaR, exposure, and P&amp;L recomputed at request time instead of being pre-aggregated. The most computationally expensive call on the page also has the highest tail latency.</p>
+          <p class="fix">Pre-aggregated snapshots in ClickHouse refreshed by the trade event stream. On-demand recalc reserved for explicit user request.</p>
+        </div>
+        <div class="bn-meta">
+          <div class="latency">+ 1,200 ms</div>
+          <div class="layer">Compute</div>
+        </div>
+      </div>
+
+      <div class="bottleneck">
+        <div class="bn-num">05</div>
+        <div class="bn-body">
+          <h4>Over-fetching and payload bloat</h4>
+          <p>REST endpoints return 4KB position objects when the page tile only needs symbol, quantity, and P&amp;L. Multiplied across fifteen calls, payload weight blocks parsing and rendering.</p>
+          <p class="fix">GraphQL queries request exactly the fields rendered. Payloads drop 60 &mdash; 80% in most cases.</p>
+        </div>
+        <div class="bn-meta">
+          <div class="latency">+ 200 ms</div>
+          <div class="layer">Payload</div>
+        </div>
+      </div>
+
+      <div class="bottleneck">
+        <div class="bn-num">06</div>
+        <div class="bn-body">
+          <h4>Render blocking on the slowest tile</h4>
+          <p>The browser paints nothing until the slowest backend resolves. Risk decomposition takes three seconds &mdash; the page is blank for three seconds.</p>
+          <p class="fix">Server-side rendered skeleton in 200ms. Tiles stream in via @defer or SSE, each with its own loading state. The page feels usable before the data lands.</p>
+        </div>
+        <div class="bn-meta">
+          <div class="latency">+ 500 ms perceived</div>
+          <div class="layer">Frontend</div>
+        </div>
+      </div>
+
+      <div class="bottleneck">
+        <div class="bn-num">07</div>
+        <div class="bn-body">
+          <h4>Cross-region data hops</h4>
+          <p>An NY trader pulling a London-booked position incurs trans-Atlantic round-trips per dependency. RTT alone adds 80 &mdash; 100ms per call.</p>
+          <p class="fix">Regional read replicas for hot data. Active-active topology where regulatory permits. The data is closer to the user than the user is to the data.</p>
+        </div>
+        <div class="bn-meta">
+          <div class="latency">+ 400 ms</div>
+          <div class="layer">Network</div>
+        </div>
+      </div>
+
+      <div class="bottleneck">
+        <div class="bn-num">08</div>
+        <div class="bn-body">
+          <h4>N+1 query patterns in trade history</h4>
+          <p>A list of twenty trades triggers twenty individual lookups for related entities (counterparty, currency pair, allocation). Classic ORM antipattern.</p>
+          <p class="fix">DataLoader batching at the BFF, plus denormalized read views in the read replica that pre-join the related entities.</p>
+        </div>
+        <div class="bn-meta">
+          <div class="latency">+ 400 ms</div>
+          <div class="layer">Data access</div>
+        </div>
+      </div>
+
+      <div class="bottleneck">
+        <div class="bn-num">09</div>
+        <div class="bn-body">
+          <h4>Inefficient indexes on transaction tables</h4>
+          <p>Trade and settlement tables indexed for write paths, not read paths. Queries filtered by customer ID and date scan more rows than they return.</p>
+          <p class="fix">Read-path-specific covering indexes on the replica. BRIN indexes for cold date ranges. The write path on the mainframe is untouched.</p>
+        </div>
+        <div class="bn-meta">
+          <div class="latency">+ 300 ms</div>
+          <div class="layer">Data</div>
+        </div>
+      </div>
+
+      <div class="bottleneck">
+        <div class="bn-num">10</div>
+        <div class="bn-body">
+          <h4>JSON parsing overhead at scale</h4>
+          <p>Verbose REST JSON serialization and deserialization at every hop. CPU-bound, not network-bound. Compounds across the mesh.</p>
+          <p class="fix">Protocol Buffers or Avro on inter-service hops. GraphQL persisted queries to remove the parse cost on the gateway entirely.</p>
+        </div>
+        <div class="bn-meta">
+          <div class="latency">+ 150 ms</div>
+          <div class="layer">Serialization</div>
+        </div>
+      </div>
+
+      <div class="bottleneck">
+        <div class="bn-num">11</div>
+        <div class="bn-body">
+          <h4>SSL/TLS handshake overhead</h4>
+          <p>mTLS in the service mesh is mandatory and correct. But every short-lived call pays the handshake cost. Connection pooling is often misconfigured.</p>
+          <p class="fix">Persistent HTTP/2 connection pools with proper idle timeouts. TLS session resumption. Istio defaults audited and tuned.</p>
+        </div>
+        <div class="bn-meta">
+          <div class="latency">+ 200 ms</div>
+          <div class="layer">Network</div>
+        </div>
+      </div>
+
+      <div class="bottleneck">
+        <div class="bn-num">12</div>
+        <div class="bn-body">
+          <h4>Database connection pool exhaustion at peak</h4>
+          <p>Login storms at market open exhaust connection pools. New connection acquisition adds hundreds of milliseconds to the tail.</p>
+          <p class="fix">PgBouncer or Vitess-style connection multiplexing. Cache-first strategy means most reads never reach the pool. Capacity planning against peak login arrival.</p>
+        </div>
+        <div class="bn-meta">
+          <div class="latency">+ 400 ms (tail)</div>
+          <div class="layer">Infrastructure</div>
+        </div>
+      </div>
+
+      <div class="bottleneck">
+        <div class="bn-num">13</div>
+        <div class="bn-body">
+          <h4>JVM garbage collection pauses</h4>
+          <p>Long-running Java services with large heaps experience 100 &mdash; 500ms stop-the-world pauses. Visible in the p99 latency distribution.</p>
+          <p class="fix">ZGC or Shenandoah on the BFF. Heap sizing reviewed. Tail-latency-sensitive paths split into dedicated services with smaller heaps.</p>
+        </div>
+        <div class="bn-meta">
+          <div class="latency">+ 200 ms (p99)</div>
+          <div class="layer">Runtime</div>
+        </div>
+      </div>
+
+      <div class="bottleneck">
+        <div class="bn-num">14</div>
+        <div class="bn-body">
+          <h4>Log aggregation and synchronous instrumentation</h4>
+          <p>Verbose synchronous logging to Splunk on the hot path. AppDynamics agents sampling at the wrong rate. Observability that costs more than it returns.</p>
+          <p class="fix">Async log appenders. OpenTelemetry sampling tuned per route. Critical-path observability split from diagnostic observability.</p>
+        </div>
+        <div class="bn-meta">
+          <div class="latency">+ 80 ms</div>
+          <div class="layer">Observability</div>
+        </div>
+      </div>
+
+      <div class="bottleneck">
+        <div class="bn-num">15</div>
+        <div class="bn-body">
+          <h4>Cold caches at peak login times</h4>
+          <p>Market-open login storms hit cold Hazelcast nodes that have rotated keys overnight. Cache miss avalanche.</p>
+          <p class="fix">Scheduled cache warming starting 30 minutes before market open, driven off the user&rsquo;s last-known-good footprint. AI-driven prefetch for the heavy users.</p>
+        </div>
+        <div class="bn-meta">
+          <div class="latency">+ 700 ms (peak)</div>
+          <div class="layer">Cache</div>
+        </div>
+      </div>
+
+      <div class="bottleneck">
+        <div class="bn-num">16</div>
+        <div class="bn-body">
+          <h4>Mobile network variability</h4>
+          <p>Mobile clients on cellular networks see higher and more variable RTT. The fast-path architecture matters more on mobile, not less.</p>
+          <p class="fix">HTTP/3 (QUIC) where supported. Aggressive CDN edge caching. Mobile-specific GraphQL queries that return less. Service worker offline-first for the shell.</p>
+        </div>
+        <div class="bn-meta">
+          <div class="latency">+ 600 ms (mobile)</div>
+          <div class="layer">Client</div>
+        </div>
+      </div>
+
+      <div class="bottleneck">
+        <div class="bn-num">17</div>
+        <div class="bn-body">
+          <h4>Third-party feed timeouts on the critical path</h4>
+          <p>External feeds &mdash; Bloomberg, Refinitiv, SWIFT GPI &mdash; occasionally degrade. When their tile is on the synchronous render path, the entire page degrades with them.</p>
+          <p class="fix">Hystrix or Resilience4j circuit breakers. Stale-while-revalidate cache strategy. Degraded tile fails open with last-known-good data and a discrete indicator.</p>
+        </div>
+        <div class="bn-meta">
+          <div class="latency">+ 1,000 ms (degraded)</div>
+          <div class="layer">External</div>
+        </div>
+      </div>
+
+      <div class="bottleneck">
+        <div class="bn-num">18</div>
+        <div class="bn-body">
+          <h4>No client-side caching across navigations</h4>
+          <p>Navigating away from the Account Overview and back triggers a full reload. Browser history, Apollo Client cache, and service worker are all underused.</p>
+          <p class="fix">Apollo Client normalized cache with type policies per domain. Service worker for the shell. Back/forward navigation is instant.</p>
+        </div>
+        <div class="bn-meta">
+          <div class="latency">+ 2,000 ms (return visit)</div>
+          <div class="layer">Client</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- CLOSING -->
+<section class="closing">
+  <div class="wrap-narrow">
+    <h2>Five seconds is<br>a product decision.</h2>
+    <p>It is not a fact about the architecture. The architecture that produced it is changeable. The proposal here is to change it deliberately, sequentially, and measurably &mdash; and to do so on the stack we already run.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>Account Overview Acceleration &middot; Ideathon Proposal</span>
+    <span>Investment Banking Technology</span>
+  </div>
+</footer>
+
+<script>
+// Reveal-on-scroll for sections
+const reveal = (el) => el.classList.add('in');
+const io = new IntersectionObserver((entries) => {
+  entries.forEach(e => e.isIntersecting && reveal(e.target));
+}, { threshold: 0.08, rootMargin: '0px 0px -10% 0px' });
+
+document.querySelectorAll('section').forEach(s => {
+  s.classList.add('reveal');
+  io.observe(s);
+});
+
+// Stagger the lever cards subtly
+document.querySelectorAll('.lever, .ai-card').forEach((el, i) => {
+  el.style.transitionDelay = (i * 40) + 'ms';
+});
+</script>
+
+</body>
+</html>
