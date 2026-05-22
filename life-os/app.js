@@ -2671,11 +2671,14 @@ function setCatPose(pose){
   cat.pose=pose;
   catState.pose=pose;
   c.dataset.pose=pose;
-  c.querySelectorAll('.pose').forEach(g=>g.classList.toggle('on',g.dataset.pose===pose));
+  // Some "behaviors" reuse a visual pose (run uses walk; speak uses current)
+  const visualPose=(pose==='run'||pose==='speak')?'walk':pose;
+  c.querySelectorAll('.pose').forEach(g=>g.classList.toggle('on',g.dataset.pose===visualPose));
   const g=document.getElementById('gorb');
   if(!g)return;
-  g.classList.remove('walking','celebrate','point-right');
+  g.classList.remove('walking','celebrate','point-right','running');
   if(pose==='walk')g.classList.add('walking');
+  else if(pose==='run')g.classList.add('walking','running');
   else if(pose==='point')g.classList.add('point-right');
   else if(pose==='celebrate')g.classList.add('celebrate');
 }
@@ -2741,30 +2744,54 @@ function catContextualHint(){
 }
 
 function catDecideIdle(now){
-  // Sometimes the cat decides to head toward a UI element to point at
   const r=Math.random();
-  if(r<0.20){
-    // Sit + sage quote
+  // PERSONAL ASSISTANT BEHAVIORS - varied like a real cat with opinions
+  if(r<0.14){
+    // 14% — SIT + Oogway quote
     cat.pose='sit';setCatPose('sit');cat.stateUntil=now+5200;
     const q=pickQuote();catSay(q.text,q.tag,5000);
-  }else if(r<0.32){
-    // Stretch + short quote
+  }else if(r<0.22){
+    // 8% — YAWN
+    cat.pose='yawn';setCatPose('yawn');cat.stateUntil=now+2400;
+    const yawns=['*yaaawn* So many habits, so few naps.','*yawn* What hour is it... oh, hydrate.','*YAAAAWN*','Mmm. The day is long. The cat is rested. You?'];
+    catSay(yawns[Math.floor(Math.random()*yawns.length)],'Sleepy',2200);
+  }else if(r<0.30){
+    // 8% — GROOM (washing paw)
+    cat.pose='groom';setCatPose('groom');cat.stateUntil=now+3200;
+    const grooms=['*lick lick* — staying sharp.','A clean cat is a focused cat.','I groom. You shower. Both count.','Self-care is non-negotiable, human.'];
+    if(Math.random()<0.7)catSay(grooms[Math.floor(Math.random()*grooms.length)],'Groom',3000);
+  }else if(r<0.38){
+    // 8% — STRETCH + wisdom-funny
     cat.pose='stretch';setCatPose('stretch');cat.stateUntil=now+2400;
-    if(Math.random()<0.55){const q=CAT_QUOTES.wisdomFunny[Math.floor(Math.random()*CAT_QUOTES.wisdomFunny.length)];catSay(q,'Wisdom',2200);}
-  }else if(r<0.40){
-    // Sleep briefly
-    cat.pose='sleep';setCatPose('sleep');cat.stateUntil=now+4000;
-    if(Math.random()<0.4)catSay('zZz... drink water.','Nap',3500);
-  }else if(r<0.52){
-    // Walk toward something to point at
+    if(Math.random()<0.6){const q=CAT_QUOTES.wisdomFunny[Math.floor(Math.random()*CAT_QUOTES.wisdomFunny.length)];catSay(q,'Wisdom',2200);}
+  }else if(r<0.46){
+    // 8% — SLEEP briefly
+    cat.pose='sleep';setCatPose('sleep');cat.stateUntil=now+4200;
+    const naps=['zZz... wake me when you log water.','*snore* ...even sages nap.','zZz... I am dreaming of fish. And your discipline.'];
+    if(Math.random()<0.5)catSay(naps[Math.floor(Math.random()*naps.length)],'Nap',3800);
+  }else if(r<0.54){
+    // 8% — LOOK (curious head tilt at something)
+    cat.pose='look';setCatPose('look');cat.stateUntil=now+2200;
+    const looks=['Hm? What is that?','Wait. Did you just skip a habit?','*tilt* That metric looks lonely.','I see you. I see everything.'];
+    catSay(looks[Math.floor(Math.random()*looks.length)],'Curious',2000);
+  }else if(r<0.62){
+    // 8% — RUN to a new far target (zoomies!)
+    cat.pose='run';setCatPose('run');
+    // pick a target on the OTHER side of screen
+    const half=window.innerWidth/2;
+    cat.targetX=cat.x<half?catBoundsMax()-20:catBoundsMin()+20;
+    const zooms=['*ZOOM*','BRB — zoomies.','The cat must run. It is written.','Cardio? Yes. *zoooom*'];
+    if(Math.random()<0.55)catSay(zooms[Math.floor(Math.random()*zooms.length)],'Zoomies',1800);
+  }else if(r<0.72){
+    // 10% — POINT at a UI element
     catGoToPoint();
-  }else if(r<0.66){
-    // Talk while walking — pick new target + drop quote
+  }else if(r<0.86){
+    // 14% — Talk while walking
     cat.targetX=catPickRandomTarget();
     const q=Math.random()<0.45?catContextualHint():pickQuote();
     catSay(q.text,q.tag);
   }else{
-    // Just keep wandering — new target, no message
+    // 14% — Quiet wander (just new target)
     cat.targetX=catPickRandomTarget();
   }
 }
@@ -2823,12 +2850,16 @@ function catTick(now){
     cat.targetX=catPickRandomTarget();
   }
 
-  // Movement: only walks
-  if(cat.pose==='walk'&&!catState.external){
+  // Movement: walking AND running both move horizontally
+  if((cat.pose==='walk'||cat.pose==='run')&&!catState.external){
     const dx=cat.targetX-cat.x;
     if(Math.abs(dx)<3){
       // Arrived
-      if(cat.pendingPoint){catFinishPoint(now);}
+      if(cat.pose==='run'){
+        // After running, pant a bit
+        cat.pose='sit';setCatPose('sit');cat.stateUntil=now+2800;
+        catSay('*pant pant* — runner\'s mind, runner\'s body.','Sage',2600);
+      }else if(cat.pendingPoint){catFinishPoint(now);}
       else{catDecideIdle(now);}
     }else{
       const dir=Math.sign(dx);
@@ -2836,8 +2867,8 @@ function catTick(now){
         cat.facing=dir;
         flipper.style.transform=`scaleX(${dir})`;
       }
-      // Slight randomized speed for natural feel
-      const speed=cat.velocity*(0.85+Math.random()*0.3);
+      const baseSpeed=cat.pose==='run'?cat.velocity*2.4:cat.velocity;
+      const speed=baseSpeed*(0.85+Math.random()*0.3);
       cat.x+=dir*speed;
     }
     stage.style.left=cat.x+'px';
