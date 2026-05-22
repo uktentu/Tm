@@ -1,0 +1,22 @@
+{
+  "name": "Beyond Standard — Life OS",
+  "short_name": "Life OS",
+  "description": "Your personal operating system for discipline, progress, and growth.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#090909",
+  "theme_color": "#090909",
+  "categories": ["productivity", "health", "lifestyle"],
+  "icons": [
+    { "src": "./icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    { "name": "Today",    "url": "./#today",    "description": "Daily dashboard" },
+    { "name": "Training", "url": "./#training", "description": "Workout tracker" },
+    { "name": "Progress", "url": "./#progress", "description": "Stats & streaks" }
+  ],
+  "prefer_related_applications": false
+}

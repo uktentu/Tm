@@ -1,0 +1,11 @@
+{
+  "appId": "com.udaykirantentu.lifeos",
+  "appName": "Life OS",
+  "webDir": "dist",
+  "ios": {
+    "buildOptions": {
+      "derivedDataPath": "~/Library/Developer/Xcode/DerivedData"
+    },
+    "contentInset": "automatic"
+  }
+}
