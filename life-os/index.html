@@ -34,8 +34,8 @@
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 *:focus{outline:none;} *:focus-visible{outline:2px solid var(--lime);outline-offset:2px;border-radius:4px;}
-html{font-size:15px;scroll-behavior:smooth;}
-body{background:var(--bg);color:var(--tx);font-family:var(--font);line-height:1.55;-webkit-font-smoothing:antialiased;overflow:hidden;height:100dvh;}
+html{font-size:15px;scroll-behavior:smooth;background:#090909;height:100%;}
+body{background:#090909;color:var(--tx);font-family:var(--font);line-height:1.55;-webkit-font-smoothing:antialiased;overflow:hidden;height:100dvh;min-height:100vh;min-height:-webkit-fill-available;width:100vw;}
 @media(hover:hover){body{cursor:none;}}
 body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 70% 50% at 15% -5%,rgba(91,140,255,.08),transparent 55%),radial-gradient(ellipse 50% 40% at 85% 105%,rgba(200,255,56,.05),transparent 55%);pointer-events:none;z-index:0;}
 body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:1000;opacity:.18;mix-blend-mode:overlay;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='4' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='.45'/></svg>");}
@@ -595,16 +595,16 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
 /* ── SAGE PIXEL CAT ── */
 .gorb{position:fixed;bottom:calc(20px + var(--sa-bot));left:0;z-index:500;pointer-events:auto;cursor:pointer;transition:left .8s var(--eo);}
 .gorb.fixed{transition:left .9s var(--eo),bottom .9s var(--eo);}
-.gorb.walking .pcat-stage{animation:catWalk 90s linear infinite;}
-.gorb.walking .pcat-flipper{animation:catFlip 90s linear infinite;}
+/* JS controls horizontal position (left) on .pcat-stage and the
+   scaleX flip on .pcat-flipper. CSS only handles per-part animations. */
 .gorb.walking .pcat{animation:catBob .42s steps(2) infinite;}
 .gorb.walking .cat-leg-a{animation:legLiftA .36s steps(2) infinite;}
 .gorb.walking .cat-leg-b{animation:legLiftB .36s steps(2) infinite;}
 .gorb.walking .cat-head{animation:headBob .36s steps(2) infinite;}
 .gorb.walking .cat-tail{animation:tailSwish .9s ease-in-out infinite;transform-box:fill-box;transform-origin:0% 100%;}
-.gorb.paused .pcat,.gorb.paused .pcat-stage,.gorb.paused .pcat-flipper,.gorb.paused .cat-leg-a,.gorb.paused .cat-leg-b,.gorb.paused .cat-head,.gorb.paused .cat-tail{animation-play-state:paused;}
-.pcat-stage{position:relative;left:0;display:inline-flex;flex-direction:column;align-items:center;}
-.pcat-flipper{display:inline-block;}
+.gorb.paused .pcat,.gorb.paused .cat-leg-a,.gorb.paused .cat-leg-b,.gorb.paused .cat-head,.gorb.paused .cat-tail{animation-play-state:paused;}
+.pcat-stage{position:relative;left:80px;display:inline-flex;flex-direction:column;align-items:center;transition:left 0s;}
+.pcat-flipper{display:inline-block;transform:scaleX(1);transition:transform .3s var(--eb);}
 .pcat{position:relative;width:52px;height:40px;image-rendering:pixelated;image-rendering:-moz-crisp-edges;image-rendering:crisp-edges;filter:drop-shadow(0 0 6px rgba(200,255,56,.35));}
 .pcat svg{width:100%;height:100%;display:block;overflow:visible;}
 .pcat .pose{display:none;}
@@ -615,27 +615,15 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
 @keyframes legLiftB{0%{transform:translateY(-1.4px);}100%{transform:translateY(0);}}
 @keyframes headBob{0%{transform:translate(0,0);}100%{transform:translate(0.2px,-0.4px);}}
 @keyframes tailSwish{0%,100%{transform:rotate(0deg);}25%{transform:rotate(-12deg);}50%{transform:rotate(0deg);}75%{transform:rotate(10deg);}}
-@keyframes catWalk{
-  0%{left:8px;}
-  50%{left:calc(100vw - 200px);}
-  100%{left:8px;}
-}
-@keyframes catFlip{
-  0%,49.9%{transform:scaleX(1);}
-  50%,99.9%{transform:scaleX(-1);}
-  100%{transform:scaleX(1);}
-}
 .gorb.celebrate .pcat-flipper{animation:catJump .55s var(--eb) infinite;}
 @keyframes catJump{0%,100%{transform:translateY(0) scaleX(1);}40%{transform:translateY(-12px) scaleX(1) rotate(-4deg);}55%{transform:translateY(-14px) scaleX(1) rotate(4deg);}}
 .gorb.point-right .pcat-flipper{animation:catPoint 1.6s ease-in-out infinite;}
 @keyframes catPoint{0%,100%{transform:translateY(0);}50%{transform:translateY(-3px);}}
-/* Speech bubble */
-.obbl{position:absolute;bottom:46px;left:50%;transform:translateX(-50%) translateY(8px);max-width:240px;width:max-content;background:linear-gradient(135deg,#0e0e0e,#181818);border:1px solid rgba(200,255,56,.35);color:var(--lime);font-size:11.5px;font-weight:600;padding:8px 14px;border-radius:16px;opacity:0;transition:all .4s var(--eb);letter-spacing:.1px;pointer-events:none;white-space:normal;text-align:center;line-height:1.4;box-shadow:0 8px 20px -4px rgba(0,0,0,.6),0 0 0 4px rgba(200,255,56,.05);font-family:var(--font);z-index:9971;}
-.obbl::after{content:'';position:absolute;bottom:-5px;left:50%;transform:translateX(-50%) rotate(45deg);width:8px;height:8px;background:#181818;border-right:1px solid rgba(200,255,56,.35);border-bottom:1px solid rgba(200,255,56,.35);}
+/* Speech bubble — position:fixed so JS can clamp it to viewport */
+.obbl{position:fixed;left:0;bottom:0;max-width:min(280px,calc(100vw - 24px));width:max-content;background:linear-gradient(135deg,#0e0e0e,#181818);border:1px solid rgba(200,255,56,.35);color:var(--lime);font-size:11.5px;font-weight:600;padding:8px 14px;border-radius:16px;opacity:0;transform:translateY(8px);transition:opacity .35s var(--eb),transform .35s var(--eb);letter-spacing:.1px;pointer-events:none;white-space:normal;text-align:center;line-height:1.4;box-shadow:0 8px 20px -4px rgba(0,0,0,.6),0 0 0 4px rgba(200,255,56,.05);font-family:var(--font);z-index:9971;}
+.obbl::after{content:'';position:absolute;bottom:-5px;left:calc(50% + var(--arrow-offset,0px));transform:translateX(-50%) rotate(45deg);width:8px;height:8px;background:#181818;border-right:1px solid rgba(200,255,56,.35);border-bottom:1px solid rgba(200,255,56,.35);}
 .obbl .obbl-tag{display:block;font-size:8px;font-weight:800;letter-spacing:1.8px;text-transform:uppercase;color:var(--lime);opacity:.6;margin-bottom:4px;}
-.gorb.sb .obbl{opacity:1;transform:translateX(-50%) translateY(0);}
-.gorb.reverse .obbl{transform:translateX(-50%) translateY(8px);}
-.gorb.reverse.sb .obbl{transform:translateX(-50%) translateY(0);}
+.gorb.sb .obbl{opacity:1;transform:translateY(0);}
 @media(hover:hover){.gorb:hover{filter:brightness(1.1);}}
 @media(max-width:768px){.pcat{width:40px;height:32px;}.obbl{font-size:10.5px;max-width:180px;padding:7px 11px;}}
 /* Highlight target the cat is pointing at */

@@ -2570,11 +2570,35 @@ function bindCursor(){
    SAGE CAT BRAIN
    Multiple poses · contextual quotes · pointing behavior
    ════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════
+   SAGE PIXEL CAT — JS-driven wandering + Oogway brain
+   ════════════════════════════════════════════════ */
 const CAT_QUOTES={
+  oogway:[
+    "Yesterday is history. Tomorrow is a mystery. Today is a gift — that is why it is called the present.",
+    "There are no accidents.",
+    "One often meets his destiny on the road he takes to avoid it.",
+    "Your mind is like this water — when agitated, it becomes difficult to see. Let it settle.",
+    "I cannot make the tree blossom when it suits me. But I can plant the seed.",
+    "Patience is not waiting. It is what you do while you wait.",
+    "Quit. Don't quit. Noodles. Don't noodles. You are too concerned with what was and what will be.",
+    "The strongest is not the one with the strongest grip — but the one who lets go first.",
+    "To take the food you must release the food.",
+    "Look inside the scroll. You are the master.",
+    "Be still. The answer is already here.",
+    "The cat that chases two mice catches none. Pick one.",
+    "A glass too full cannot be filled. A schedule too full cannot be lived.",
+    "The mountain does not grow in a day. Neither do biceps.",
+    "Procrastination is fear wearing a clever robe.",
+    "The flap of a wing changes the storm. Tick one box.",
+    "Discipline is the bridge. Walk it, even when the river roars.",
+    "You will find your peace, my friend. You only have to look.",
+    "The water knows where to go. So does the willing heart.",
+    "What is feared in stillness is not the silence — it is the truth.",
+  ],
   sage:[
-    "The mountain teaches patience. Today's reps build tomorrow's body.",
     "Slow is smooth. Smooth is fast.",
-    "Sharpen the axe before you swing it. Plan, then act.",
+    "Sharpen the axe before you swing it.",
     "The fox knows many things. The hedgehog one big thing. Choose.",
     "What you tolerate, you teach. Raise the standard.",
     "Discipline is choosing between what you want now and what you want most.",
@@ -2589,27 +2613,32 @@ const CAT_QUOTES={
     "Show up bored. Show up tired. Just show up.",
     "Today is the only day. Tomorrow is fiction.",
     "Stack the win. Then stack another.",
-    "Hard work beats talent that doesn't work hard.",
-    "Champions are not made in gyms. They are made in choices.",
-    "The pain you feel today is the strength you feel tomorrow.",
-    "Train insane or remain the same.",
+    "Champions are made in choices, not gyms.",
     "Bricks. Just lay one more brick.",
+    "The pain you feel today is the strength you feel tomorrow.",
   ],
   funny:[
     "*meow* — hydrate, human.",
-    "I napped 14 hours. Be more like me.",
+    "I napped 14 hours. Be more like me. Hydrated.",
     "I demand tribute. Check water.",
     "9 lives. Still picking excuses. Pick discipline.",
-    "Skipped your workout? I would knock things off the table.",
+    "Skipped workout? I would knock things off your desk.",
     "Carbs are not the enemy. Skipped workouts are.",
-    "You called yourself busy. I see Netflix in your browser history.",
+    "You called yourself busy. I see Netflix in your history.",
     "If you can scroll, you can plank.",
-    "Cats nap to recover. You scroll. Pick one.",
+    "Even the longest journey starts with one push-up. Or a snack. Choose.",
     "*purr* good. Now eat protein.",
   ],
+  wisdomFunny:[
+    "I have meditated nine lifetimes. The answer is: drink water.",
+    "When in doubt — nap. Then act.",
+    "The wise cat knows: a missed habit is not a broken life. A missed week is.",
+    "The lazy cat dreams of fish. The disciplined cat dreams of better fish.",
+    "I have seen many humans. The disciplined ones laugh more.",
+  ],
   contextual:{
-    today:["Start with water. Always water.","Check one thing. Build momentum.","One non-negotiable, no excuses."],
-    schedule:["Alarms set tonight save the morning.","The clock is your accountability.","Time-blocked = decision-made."],
+    today:["Start with water. Always water.","Check one thing. Build momentum.","One non-negotiable. No excuses."],
+    schedule:["Alarms set tonight save the morning.","The clock is your accountability partner.","Time-blocked = decision-made."],
     training:["Mind-muscle. Every rep.","Last 2 reps build muscle.","Form > weight. Always.","Track it or it didn't happen."],
     nutrition:["Protein first. Carbs second.","Slow chew. Full faster.","Hydrate before you eat.","Hit your target before snacks."],
     style:["Plan tomorrow's fit tonight.","Confidence wears a quiet shirt.","Fit > brand. Always."],
@@ -2619,19 +2648,63 @@ const CAT_QUOTES={
   }
 };
 
-let catState={pose:'walk',busy:false,lastQuoteAt:0};
+// Cat brain state
+const cat={
+  x:80,            // current viewport x (left, px)
+  targetX:300,     // walking target
+  velocity:0.55,   // px per frame at ~60fps
+  facing:1,        // 1=right, -1=left
+  pose:'walk',     // walk|sit|sleep|stretch|point|celebrate
+  stateUntil:0,    // when current non-walk state expires
+  pendingPoint:null,
+  rafLast:0,
+};
+let catState={pose:'walk',busy:false,lastQuoteAt:0,external:false}; // backwards-compat for catReact
+
+function catBoundsMin(){return 8;}
+function catBoundsMax(){return Math.max(80,window.innerWidth-160);}
+function catPickRandomTarget(){return catBoundsMin()+Math.random()*(catBoundsMax()-catBoundsMin());}
 
 function setCatPose(pose){
-  const cat=document.getElementById('pcat');
-  if(!cat)return;
+  const c=document.getElementById('pcat');
+  if(!c)return;
+  cat.pose=pose;
   catState.pose=pose;
-  cat.dataset.pose=pose;
-  cat.querySelectorAll('.pose').forEach(g=>g.classList.toggle('on',g.dataset.pose===pose));
+  c.dataset.pose=pose;
+  c.querySelectorAll('.pose').forEach(g=>g.classList.toggle('on',g.dataset.pose===pose));
   const g=document.getElementById('gorb');
   if(!g)return;
   g.classList.remove('walking','celebrate','point-right');
   if(pose==='walk')g.classList.add('walking');
   else if(pose==='point')g.classList.add('point-right');
+  else if(pose==='celebrate')g.classList.add('celebrate');
+}
+
+// Position the speech bubble fixed to viewport, clamped, with arrow pointing at cat.
+function positionBubble(){
+  const bubble=document.getElementById('obbl');
+  const stage=document.getElementById('pcatStage');
+  const gorb=document.getElementById('gorb');
+  if(!bubble||!stage||!gorb)return;
+  // Get the actual cat (the visual SVG center) — use pcat-flipper rect
+  const flipper=document.querySelector('.pcat-flipper')||stage;
+  const rect=flipper.getBoundingClientRect();
+  // Bubble dimensions — temporarily reset width to measure natural size
+  const bw=Math.min(bubble.offsetWidth||220,Math.min(window.innerWidth-24,280));
+  const catCenterX=rect.left+rect.width/2;
+  const margin=12;
+  let left=catCenterX-bw/2;
+  if(left<margin)left=margin;
+  if(left+bw>window.innerWidth-margin)left=window.innerWidth-bw-margin;
+  const bottomFromViewport=window.innerHeight-rect.top+10;
+  bubble.style.left=left+'px';
+  bubble.style.bottom=bottomFromViewport+'px';
+  // Arrow points at the cat (clamped within the bubble)
+  const bubbleCenter=left+bw/2;
+  let arrowOffset=catCenterX-bubbleCenter;
+  const arrowMax=bw/2-16;
+  arrowOffset=Math.max(-arrowMax,Math.min(arrowMax,arrowOffset));
+  bubble.style.setProperty('--arrow-offset',arrowOffset+'px');
 }
 
 function catSay(text,tag='Sage',duration=4500){
@@ -2642,147 +2715,176 @@ function catSay(text,tag='Sage',duration=4500){
   if(tg)tg.textContent=tag;
   t.textContent=text;
   g.classList.add('sb');
+  // Position next frame so bubble dimensions are correct
+  requestAnimationFrame(()=>requestAnimationFrame(positionBubble));
   clearTimeout(catSay._t);
   catSay._t=setTimeout(()=>g.classList.remove('sb'),duration);
   catState.lastQuoteAt=Date.now();
 }
 
 function pickQuote(){
-  const pools=['sage','motivational','funny'];
-  const pool=pools[Math.floor(Math.random()*pools.length)];
-  const arr=CAT_QUOTES[pool];
-  return {text:arr[Math.floor(Math.random()*arr.length)],tag:pool.charAt(0).toUpperCase()+pool.slice(1)};
+  const r=Math.random();
+  // 40% Oogway · 20% sage · 15% motivational · 15% funny · 10% wisdomFunny
+  let pool,tag;
+  if(r<0.40){pool=CAT_QUOTES.oogway;tag='Oogway';}
+  else if(r<0.60){pool=CAT_QUOTES.sage;tag='Sage';}
+  else if(r<0.75){pool=CAT_QUOTES.motivational;tag='Pump';}
+  else if(r<0.90){pool=CAT_QUOTES.funny;tag='Funny';}
+  else{pool=CAT_QUOTES.wisdomFunny;tag='Wisdom';}
+  return {text:pool[Math.floor(Math.random()*pool.length)],tag};
 }
 
 function catContextualHint(){
-  const id=SECS[curSec]?.id||'today';
+  const id=(typeof curSecId==='function'?curSecId():(SECS[curSec]?.id))||'today';
   const arr=CAT_QUOTES.contextual[id]||CAT_QUOTES.contextual.today;
   return {text:arr[Math.floor(Math.random()*arr.length)],tag:id.charAt(0).toUpperCase()+id.slice(1)};
 }
 
-// Idle cycle: every 18-35s a random action
-function catIdleTick(){
-  if(catState.busy)return;
+function catDecideIdle(now){
+  // Sometimes the cat decides to head toward a UI element to point at
   const r=Math.random();
-  if(r<0.45){
-    // Talk while walking
-    const q=Math.random()<0.4?catContextualHint():pickQuote();
-    catSay(q.text,q.tag);
-  }else if(r<0.65){
+  if(r<0.20){
     // Sit + sage quote
-    catState.busy=true;setCatPose('sit');
+    cat.pose='sit';setCatPose('sit');cat.stateUntil=now+5200;
     const q=pickQuote();catSay(q.text,q.tag,5000);
-    setTimeout(()=>{setCatPose('walk');catState.busy=false;},5200);
-  }else if(r<0.80){
-    // Stretch + motivational
-    catState.busy=true;setCatPose('stretch');
-    catSay(CAT_QUOTES.motivational[Math.floor(Math.random()*CAT_QUOTES.motivational.length)],'Stretch',3500);
-    setTimeout(()=>{setCatPose('walk');catState.busy=false;},3700);
-  }else if(r<0.92){
-    // Quick sleep
-    catState.busy=true;setCatPose('sleep');
-    catSay('zZz... wake me when you log water.','Nap',3000);
-    setTimeout(()=>{setCatPose('walk');catState.busy=false;},3200);
+  }else if(r<0.32){
+    // Stretch + short quote
+    cat.pose='stretch';setCatPose('stretch');cat.stateUntil=now+2400;
+    if(Math.random()<0.55){const q=CAT_QUOTES.wisdomFunny[Math.floor(Math.random()*CAT_QUOTES.wisdomFunny.length)];catSay(q,'Wisdom',2200);}
+  }else if(r<0.40){
+    // Sleep briefly
+    cat.pose='sleep';setCatPose('sleep');cat.stateUntil=now+4000;
+    if(Math.random()<0.4)catSay('zZz... drink water.','Nap',3500);
+  }else if(r<0.52){
+    // Walk toward something to point at
+    catGoToPoint();
+  }else if(r<0.66){
+    // Talk while walking — pick new target + drop quote
+    cat.targetX=catPickRandomTarget();
+    const q=Math.random()<0.45?catContextualHint():pickQuote();
+    catSay(q.text,q.tag);
   }else{
-    // Point at something on screen
-    catPointAtRandom();
+    // Just keep wandering — new target, no message
+    cat.targetX=catPickRandomTarget();
   }
 }
 
-// Pause walking and point at a notable element in the current section
-function catPointAtRandom(){
+function catGoToPoint(){
   const targets={
-    today:['#waterRing','#dpBar','#xpHud','#checks .ch:first-child','#journalWin'],
-    schedule:['#bgrid .blk:first-child','#addBlockBtn'],
-    training:['#logSessionBtn','#sessionHistory','.train-hero'],
-    nutrition:['.mrings .mrc:first-child','#nutritionStats .ns-card:first-child','#mealTemplates'],
+    today:['#rightNow','#waterRing','#xpHud','#checks .ch:not(.done)','#journalWin','#sbStreak','#smartInsight'],
+    schedule:['#bgrid .blk:first-child','#addBlockBtn','#psw','#pswManage'],
+    training:['#logSessionBtn','#sessionHistory','.train-hero','#dtabs'],
+    nutrition:['.mrings .mrc:first-child','#nutritionStats .ns-card','#mealTemplates','#editTargetsBtn'],
     style:['.outfit-plan','.sg .sc:first-child'],
-    bookmarks:['#bmSearch','#bmgrid'],
-    progress:['.stk-hero','#measGrid','#habitStreaksGrid','#photoGrid'],
-    analytics:['#anRange','#anEnergySpark','.an-stat:first-child']
+    bookmarks:['#bmSearch','#bmgrid .bcard:first-child'],
+    progress:['.stk-hero','#measGrid','#habitStreaksGrid','#photoGrid','#prgrid'],
+    analytics:['#anRange','#anEnergySpark','.an-stat:first-child','#anCal']
   };
-  const id=SECS[curSec]?.id||'today';
-  const candidates=(targets[id]||targets.today).map(s=>document.querySelector(s)).filter(Boolean);
-  if(!candidates.length)return;
+  const id=(typeof curSecId==='function'?curSecId():(SECS[curSec]?.id))||'today';
+  const list=targets[id]||targets.today;
+  const candidates=list.map(s=>document.querySelector(s)).filter(el=>el&&el.getBoundingClientRect().width>0);
+  if(!candidates.length){cat.targetX=catPickRandomTarget();return;}
   const target=candidates[Math.floor(Math.random()*candidates.length)];
   const rect=target.getBoundingClientRect();
-  if(rect.width===0||rect.height===0)return;
-  catState.busy=true;
-  const g=document.getElementById('gorb');
-  g.classList.add('fixed');
-  g.classList.remove('walking','reverse');
-  // Position cat directly below the target
-  const targetCenterX=rect.left+rect.width/2;
-  const catX=Math.max(8,Math.min(window.innerWidth-72,targetCenterX-26));
-  const catBottom=Math.max(20,window.innerHeight-rect.top+8);
-  g.style.left=catX+'px';
-  g.style.bottom=catBottom+'px';
-  setCatPose('point');
+  // Walk to a position under or near the target
+  const targetX=rect.left+rect.width/2-26;
+  cat.targetX=Math.max(catBoundsMin(),Math.min(catBoundsMax(),targetX));
+  cat.pendingPoint=target;
+}
+
+function catFinishPoint(now){
+  const target=cat.pendingPoint;cat.pendingPoint=null;
+  if(!target||!target.classList){cat.targetX=catPickRandomTarget();return;}
+  cat.pose='point';setCatPose('point');cat.stateUntil=now+5200;
   target.classList.add('cat-highlight');
   const hints=[
-    'Look here. This is the metric.',
-    'Eyes on this. The truth lives here.',
+    'Look here. The metric lives here.',
+    'Eyes on this. The truth is here.',
     'This. This is what matters today.',
     'Notice the pattern. Then act.',
     'Tend this card. Daily.',
     'Small numbers. Big compounding.',
+    'Oogway says: master one thing. Start with this.',
   ];
   catSay(hints[Math.floor(Math.random()*hints.length)],'Pointing',5000);
-  setTimeout(()=>{
-    target.classList.remove('cat-highlight');
-    g.classList.remove('fixed');
-    g.style.left='';g.style.bottom='';
-    setCatPose('walk');
-    catState.busy=false;
-  },5500);
+  setTimeout(()=>{try{target.classList.remove('cat-highlight');}catch{}},5400);
+}
+
+// Main animation loop — JS-driven movement
+function catTick(now){
+  const g=document.getElementById('gorb');
+  const stage=document.getElementById('pcatStage');
+  const flipper=document.querySelector('.pcat-flipper');
+  if(!g||!stage||!flipper){requestAnimationFrame(catTick);return;}
+
+  // State expiry — return to walking
+  if(cat.pose!=='walk'&&now>cat.stateUntil&&!catState.external){
+    cat.pose='walk';setCatPose('walk');
+    cat.targetX=catPickRandomTarget();
+  }
+
+  // Movement: only walks
+  if(cat.pose==='walk'&&!catState.external){
+    const dx=cat.targetX-cat.x;
+    if(Math.abs(dx)<3){
+      // Arrived
+      if(cat.pendingPoint){catFinishPoint(now);}
+      else{catDecideIdle(now);}
+    }else{
+      const dir=Math.sign(dx);
+      if(dir!==cat.facing){
+        cat.facing=dir;
+        flipper.style.transform=`scaleX(${dir})`;
+      }
+      // Slight randomized speed for natural feel
+      const speed=cat.velocity*(0.85+Math.random()*0.3);
+      cat.x+=dir*speed;
+    }
+    stage.style.left=cat.x+'px';
+  }
+
+  // Re-position bubble each frame if visible (cat may have moved)
+  if(g.classList.contains('sb')){positionBubble();}
+
+  requestAnimationFrame(catTick);
 }
 
 // Public reactions
 function catReact(event){
-  if(catState.busy)return;
+  if(catState.external)return;
   const reactions={
-    habitChecked:[
-      {pose:'celebrate',msg:'Yes! Stack it.',tag:'Pump'},
-      {pose:'celebrate',msg:'Brick laid. Next.',tag:'Pump'},
-    ],
-    waterLogged:[
-      {pose:'stretch',msg:'*purrr* good hydration human.',tag:'Approval'},
-      {pose:'sit',msg:'Cells thank you.',tag:'Sage'},
-    ],
-    sessionLogged:[
-      {pose:'celebrate',msg:'A receipt for tomorrow.',tag:'Pump'},
-    ],
-    sectionChange:[
-      {pose:'walk',quoteFromContext:true},
-    ],
+    habitChecked:[{pose:'celebrate',msg:'Yes! Stack it.',tag:'Pump'},{pose:'celebrate',msg:'Brick laid. Next.',tag:'Pump'},{pose:'sit',msg:'Oogway nods.',tag:'Oogway'}],
+    waterLogged:[{pose:'stretch',msg:'*purrr* good hydration human.',tag:'Approval'},{pose:'sit',msg:'Cells thank you.',tag:'Sage'}],
+    sessionLogged:[{pose:'celebrate',msg:'A receipt for tomorrow.',tag:'Pump'},{pose:'sit',msg:'The mountain does not grow in a day.',tag:'Oogway'}],
+    sectionChange:[{pose:'walk',quoteFromContext:true}],
   };
-  const pool=reactions[event];
-  if(!pool)return;
+  const pool=reactions[event];if(!pool)return;
   const r=pool[Math.floor(Math.random()*pool.length)];
-  if(r.quoteFromContext){
-    const q=catContextualHint();catSay(q.text,q.tag);return;
-  }
-  catState.busy=true;
-  const prev=catState.pose;
+  if(r.quoteFromContext){const q=catContextualHint();catSay(q.text,q.tag);return;}
+  catState.external=true;
   setCatPose(r.pose);
   catSay(r.msg,r.tag||'Cat',3000);
-  setTimeout(()=>{setCatPose(prev==='point'?'walk':prev);catState.busy=false;},3100);
+  setTimeout(()=>{setCatPose('walk');cat.pose='walk';cat.targetX=catPickRandomTarget();catState.external=false;},3100);
 }
 
-setInterval(catIdleTick,28000);
-// First quote shortly after page load
+// Kick off — start the rAF loop and drop a contextual quote shortly after load
+requestAnimationFrame(catTick);
 setTimeout(()=>{const q=catContextualHint();catSay(q.text,q.tag);},6500);
+window.addEventListener('resize',()=>{positionBubble();cat.targetX=Math.min(cat.targetX,catBoundsMax());});
 
 document.addEventListener('DOMContentLoaded',()=>{
   const g=document.getElementById('gorb');
   if(!g)return;
+  // Initial position — start somewhere visible (not just left edge)
+  cat.x=Math.min(120,catBoundsMax()/3);
+  cat.targetX=catPickRandomTarget();
   setCatPose('walk');
   g.addEventListener('click',()=>{
-    if(catState.busy)return;
-    catState.busy=true;
+    if(catState.external)return;
+    catState.external=true;
     setCatPose('stretch');
     const q=pickQuote();catSay(q.text,q.tag,4000);
-    setTimeout(()=>{setCatPose('walk');catState.busy=false;},2400);
+    setTimeout(()=>{cat.pose='walk';setCatPose('walk');cat.targetX=catPickRandomTarget();catState.external=false;},2400);
   });
 });
 
