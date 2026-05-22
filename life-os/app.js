@@ -617,6 +617,11 @@ function updateUserUI(){
    PUSH NOTIFICATIONS
    ════════════════════════════════════════════════ */
 async function enableNotifications(){
+  if(window.Capacitor && window.Capacitor.Plugins.LocalNotifications){
+    const p = await Capacitor.Plugins.LocalNotifications.requestPermissions();
+    if(p.display === 'granted'){toast('🔔 Notifications enabled');return true;}
+    toast('Permission denied.');return false;
+  }
   if(!('Notification' in window)){toast('Notifications not supported.');return false;}
   if(Notification.permission==='granted')return true;
   const p=await Notification.requestPermission();
@@ -627,30 +632,65 @@ async function enableNotifications(){
 function clearNotifyTimers(){
   notifyTimers.forEach(t=>clearTimeout(t));
   notifyTimers=[];
+  if(window.Capacitor && window.Capacitor.Plugins.LocalNotifications){
+    Capacitor.Plugins.LocalNotifications.getPending().then(pending => {
+      if(pending && pending.notifications.length){
+        Capacitor.Plugins.LocalNotifications.cancel({ notifications: pending.notifications }).catch(()=>{});
+      }
+    }).catch(()=>{});
+  }
 }
 
 function scheduleAllNotifications(){
   clearNotifyTimers();
   if(!ls('notify_enabled',false))return;
-  if(typeof Notification==='undefined'||Notification.permission!=='granted')return;
+  const isCap = window.Capacitor && window.Capacitor.Plugins.LocalNotifications;
+  if(!isCap && (typeof Notification==='undefined'||Notification.permission!=='granted'))return;
+  
   const mins=parseInt(ls('notify_min',5))||5;
   const blocks=getProfile(curP).blocks||[];
   const now=new Date();
-  blocks.forEach(b=>{
+  let capNotifs = [];
+
+  blocks.forEach((b, i)=>{
     const [hh,mm]=b.t.split(':').map(Number);
     const target=new Date();target.setHours(hh,mm,0,0);
     const fireAt=target.getTime()-mins*60*1000;
     const delay=fireAt-now.getTime();
     if(delay>0&&delay<24*60*60*1000){
-      const tid=setTimeout(()=>{
-        showNotif('⏰ '+b.n+' in '+mins+' min',b.d);
-      },delay);
-      notifyTimers.push(tid);
+      if(isCap){
+        capNotifs.push({
+          id: i + 1,
+          title: '⏰ '+b.n+' in '+mins+' min',
+          body: (b.d||'').split('.')[0],
+          schedule: { at: new Date(fireAt) }
+        });
+      } else {
+        const tid=setTimeout(()=>{
+          showNotif('⏰ '+b.n+' in '+mins+' min',b.d);
+        },delay);
+        notifyTimers.push(tid);
+      }
     }
   });
+
+  if(isCap && capNotifs.length > 0){
+    Capacitor.Plugins.LocalNotifications.schedule({ notifications: capNotifs }).catch(()=>{});
+  }
 }
 
 function showNotif(title,body){
+  if(window.Capacitor && window.Capacitor.Plugins.LocalNotifications){
+    Capacitor.Plugins.LocalNotifications.schedule({
+      notifications: [{
+        id: Math.floor(Math.random()*10000) + 1000,
+        title,
+        body,
+        schedule: { at: new Date(Date.now() + 1000) }
+      }]
+    }).catch(()=>{});
+    return;
+  }
   if(!('Notification' in window))return;
   if(Notification.permission!=='granted')return;
   if(navigator.serviceWorker&&navigator.serviceWorker.controller){

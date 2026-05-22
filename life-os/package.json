@@ -1,0 +1,22 @@
+{
+  "name": "life-os",
+  "version": "1.0.0",
+  "description": "A personal Progressive Web App for discipline, progress, and growth. Built as a single-page app deployed via GitHub Pages with GitHub Actions.",
+  "main": "app.js",
+  "scripts": {
+    "build": "rm -rf dist && mkdir -p dist && cp index.html app.js sw.js manifest.json offline.html dist/ && cp -r icons dist/ && xattr -rc dist || true",
+    "dev:ios": "npm run build && npx cap sync ios && npx cap run ios --target AB2BA6C0-DF31-4A2A-8ABE-6F99E18D5DEE",
+    "dev:ipad": "npm run build && npx cap sync ios && npx cap run ios --target 7D767D23-7754-4595-A947-645224F70446",
+    "open:ios": "npx cap open ios"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@capacitor/cli": "^8.3.4",
+    "@capacitor/core": "^8.3.4",
+    "@capacitor/ios": "^8.3.4",
+    "@capacitor/local-notifications": "^8.2.0"
+  }
+}

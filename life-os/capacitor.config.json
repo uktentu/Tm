@@ -1,0 +1,12 @@
+{
+  "appId": "com.udaykirantentu.lifeos",
+  "appName": "Life OS",
+  "webDir": "dist",
+  "backgroundColor": "#090909",
+  "ios": {
+    "backgroundColor": "#090909",
+    "buildOptions": {
+      "derivedDataPath": "~/Library/Developer/Xcode/DerivedData"
+    }
+  }
+}
