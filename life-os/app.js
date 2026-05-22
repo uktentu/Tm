@@ -3581,12 +3581,14 @@ function init(){
   if(!cfgUsed)cfgUsed=FB_DEFAULT_CONFIG;
   try{initFirebase(cfgUsed);}catch(e){console.warn('Firebase init failed:',e);}
 
-  // ── First-time: show sign-in if not signed in and never dismissed ──
-  if(!localStorage.getItem('fb_uid')&&!ls('pwa_dismissed_auth',false)){
-    setTimeout(()=>{document.getElementById('authModal').classList.add('show');},5500);
-  }else{
-    updateUserUI();
-  }
+  // ── Sign-in flow:
+  //   • If user is NOT yet onboarded → onboarding handles sign-in (step 4)
+  //   • If user IS onboarded but never dismissed and isn't signed in →
+  //     wait until they actually want it (header sync chip / Settings).
+  //   • If user dismissed → never auto-show.
+  // Never auto-show during/after first-launch onboarding (avoids the
+  // modal-stacking bug where auth pops up after offline was chosen).
+  updateUserUI();
 
   // ── Schedule notifications ──
   if(ls('notify_enabled',false)&&typeof Notification!=='undefined'&&Notification.permission==='granted'){
