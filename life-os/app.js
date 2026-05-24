@@ -370,18 +370,38 @@ function fbWrite(k,v){
   if(LOCAL_ONLY.some(p=>k.startsWith(p)))return;
   if(!SYNC_KEY_PREFIXES.some(p=>k.startsWith(p))&&!SYNC_KEYS_EXACT.includes(k))return;
   const fk=k.replace(/[.#$\[\]]/g,'_');
-  fbDb.ref(FB_PATH(fbUser.uid)+'/'+fk).set(v);
+  fbDb.ref(FB_PATH(fbUser.uid)+'/'+fk).set(v)
+    .catch(e=>console.warn('fbWrite failed:',k,e));
+}
+
+// Upload ALL local sync-eligible data to Firebase in one batch (fills gaps on first sign-in)
+function fbPushAllLocal(){
+  if(!fbDb||!fbUser)return;
+  const data=collectSyncData();
+  const updates={};
+  Object.entries(data).forEach(([k,v])=>{
+    updates[k.replace(/[.#$\[\]]/g,'_')]=v;
+  });
+  if(!Object.keys(updates).length)return;
+  setSyncStatus('syncing');
+  fbDb.ref(FB_PATH(fbUser.uid)).update(updates)
+    .then(()=>{localStorage.setItem('last_synced',new Date().toISOString());setSyncStatus('ok');})
+    .catch(e=>{console.warn('fbPushAllLocal failed:',e);setSyncStatus('err');toast('⚠ Sync failed — check Firebase rules.');});
 }
 
 function fbAttachListener(){
   const ref=fbDb.ref(FB_PATH(fbUser.uid));
   if(fbListenerOff)fbListenerOff();
+  let firstFire=true;
   const cb=ref.on('value',snap=>{
     const d=snap.val();
     if(d)applySyncData(d);
     localStorage.setItem('last_synced',new Date().toISOString());
     setSyncStatus('ok');
     rerenderAll();
+    // On first snapshot: push all local data up so Firebase has everything
+    // (covers case where user had data before signing in)
+    if(firstFire){firstFire=false;fbPushAllLocal();}
   });
   fbListenerOff=()=>ref.off('value',cb);
 }
@@ -3287,7 +3307,10 @@ function init(){
   // ── Header buttons ──
   document.getElementById('syncChip').addEventListener('click',()=>{
     if(!fbUser){document.getElementById('authModal').classList.add('show');return;}
-    fbAttachListener();toast('↻ Syncing…');
+    setSyncStatus('syncing');
+    fbPushAllLocal();
+    fbAttachListener();
+    toast('↻ Syncing…');
   });
   document.getElementById('settingsBtn').addEventListener('click',()=>{
     document.getElementById('settingsPanel').classList.add('show');
@@ -3309,7 +3332,10 @@ function init(){
   if(fbSyncNowBtn){
     fbSyncNowBtn.addEventListener('click',()=>{
       if(!fbUser){toast('Not signed in.');return;}
-      fbAttachListener();toast('↻ Syncing…');
+      setSyncStatus('syncing');
+      fbPushAllLocal();
+      fbAttachListener();
+      toast('↻ Syncing…');
     });
   }
   const fbConfigSettingsBtn=document.getElementById('fbConfigSettingsBtn');
