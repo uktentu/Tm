@@ -711,6 +711,11 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
 @media(max-width:768px){:root{--hdr:52px;}.wm{display:none;}.slbl{display:none;}.today-extra{grid-template-columns:1fr 1fr;}.mrings{grid-template-columns:repeat(2,1fr);}.macro-bars{grid-template-columns:1fr;}.bmadd{grid-template-columns:1fr 1fr;}.pr-g{grid-template-columns:repeat(2,1fr);}.op-grid{grid-template-columns:repeat(4,1fr);}.prin-list li{font-size:12px;}.pcat{width:36px;height:27px;}.train-hero{grid-template-columns:1fr;}.th-meta{text-align:left;}.sync-chip span:not(.sc-dot){display:none;}.sync-chip{padding:5px 8px;}}
 @media(max-width:480px){.ndots{gap:4px;}.ndot{width:6px;height:6px;min-width:6px;}.ndot.active{width:22px;}.today-extra{grid-template-columns:1fr;}.mrings{grid-template-columns:repeat(2,1fr);}.bmadd{grid-template-columns:1fr;}.pr-g{grid-template-columns:1fr 1fr;}.op-grid{grid-template-columns:repeat(3,1fr);}.stk-n{font-size:clamp(56px,18vw,104px);}.an-top{grid-template-columns:1fr 1fr;}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;}}
+/* Prevent iOS Safari zoom on input focus — any text input < 16px triggers zoom */
+@media(max-width:768px){
+  input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=submit]):not([type=button]),
+  select,textarea{font-size:16px!important;}
+}
 /* ── HABIT STREAKS ── */
 .ch-streak{margin-left:auto;font-size:10px;font-weight:700;color:var(--t3);letter-spacing:0;flex-shrink:0;}
 .ch-streak.hot{color:var(--lime);}
@@ -1102,7 +1107,7 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
     <div class="sp-row">
       <div>
         <div class="sp-row-lbl">Enable reminders</div>
-        <div class="sp-row-sub">Get notified before each block</div>
+        <div class="sp-row-sub">Schedule + meal alerts (requires app open on iOS)</div>
       </div>
       <button class="sp-toggle" id="notifyToggle"></button>
     </div>
@@ -1238,12 +1243,16 @@ header{flex-shrink:0;height:var(--hdr);display:flex;align-items:center;justify-c
           </div>
           <div class="habit-sugg" id="habitSugg">
             <span class="hs-sg-lbl">Quick add:</span>
+            <button class="hs-sg-chip" data-h="Ate breakfast">🍳 Breakfast</button>
+            <button class="hs-sg-chip" data-h="Lunch before 2 PM">🍽 Lunch on time</button>
+            <button class="hs-sg-chip" data-h="Had dinner">🌙 Dinner</button>
+            <button class="hs-sg-chip" data-h="No Zomato today">🚫 No Zomato</button>
+            <button class="hs-sg-chip" data-h="Cooked at home">🍳 Cooked</button>
+            <button class="hs-sg-chip" data-h="20 min home workout">💪 Home workout</button>
             <button class="hs-sg-chip" data-h="Read 20 min">📖 Read</button>
             <button class="hs-sg-chip" data-h="Meditate 10 min">🧘 Meditate</button>
             <button class="hs-sg-chip" data-h="No social media">📵 No socials</button>
-            <button class="hs-sg-chip" data-h="Cold shower">🚿 Cold shower</button>
             <button class="hs-sg-chip" data-h="Walk 10k steps">🚶 10k steps</button>
-            <button class="hs-sg-chip" data-h="Journal at night">📝 Journal</button>
           </div>
         </div>
       </div>

@@ -465,6 +465,7 @@ let rtSec=90,rtCur=90,rtRun=false,rtInt=null;
 let calMonth=new Date().getMonth(),calYear=new Date().getFullYear();
 let deferredPrompt=null;
 let notifyTimers=[];
+let mealTimers=[];
 let pendingSessionDayIdx=0;
 
 /* ════════════════════════════════════════════════
@@ -627,6 +628,33 @@ async function enableNotifications(){
 function clearNotifyTimers(){
   notifyTimers.forEach(t=>clearTimeout(t));
   notifyTimers=[];
+}
+
+function clearMealTimers(){
+  mealTimers.forEach(t=>clearTimeout(t));
+  mealTimers=[];
+}
+
+function scheduleMealReminders(){
+  clearMealTimers();
+  if(!ls('notify_enabled',false))return;
+  if(typeof Notification==='undefined'||Notification.permission!=='granted')return;
+  const reminders=[
+    {h:7,m:30,title:'🍳 Breakfast time!',body:'Start the day right — oats or eggs take 5 min.'},
+    {h:13,m:0,title:'🍽 Lunch time',body:'Eat before 2 PM — rice + dal or whatever\'s quick.'},
+    {h:16,m:30,title:'💧 Hydrate + snack',body:'Drink water, have a banana or nuts to keep going.'},
+    {h:20,m:0,title:'🌙 Dinner time',body:'Cook at home tonight — your body will thank you.'},
+    {h:22,m:0,title:'🚨 Had dinner?',body:'Skipping dinner isn\'t worth it — eat something now.'},
+  ];
+  const now=new Date();
+  reminders.forEach(r=>{
+    const target=new Date();target.setHours(r.h,r.m,0,0);
+    const delay=target.getTime()-now.getTime();
+    if(delay>0&&delay<24*60*60*1000){
+      const tid=setTimeout(()=>showNotif(r.title,r.body),delay);
+      mealTimers.push(tid);
+    }
+  });
 }
 
 function scheduleAllNotifications(){
@@ -1173,7 +1201,8 @@ function finishOnboarding(signIn){
     lsSet('visible_sections',s);
   }
   if(obState.theme)applyTheme(obState.theme);
-  refreshSecs();buildNav();renderToday();renderSched();renderTraining();renderNutrition();renderBm();
+  refreshSecs();buildNav();renderSecToggles();renderThemePicker();
+  renderToday();renderSched();renderTraining();renderNutrition();renderBm();
   closeOnboarding();
   if(signIn)document.getElementById('authModal').classList.add('show');
   else{lsSet('pwa_dismissed_auth',true);toast('Welcome — you can sign in anytime from Settings.');}
@@ -2979,6 +3008,59 @@ function rerenderAll(){
 }
 
 /* ════════════════════════════════════════════════
+   SETTINGS PANEL RENDERERS (top-level so callers outside init can use them)
+   ════════════════════════════════════════════════ */
+function renderThemePicker(){
+  const row=document.getElementById('spThemeRow');if(!row)return;
+  const cur=ls('theme','lime');
+  row.innerHTML='';
+  Object.entries(THEMES).forEach(([key,t])=>{
+    const b=document.createElement('button');
+    b.className='sp-theme-dot'+(key===cur?' sel':'');
+    b.title=t.n;b.style.background=t.hex;
+    b.addEventListener('click',()=>{applyTheme(key);renderThemePicker();toast('Theme: '+t.n);});
+    row.appendChild(b);
+  });
+}
+
+function renderSecToggles(){
+  const wrap=document.getElementById('spSecToggles');if(!wrap)return;
+  const visible=getVisibleSectionIds();
+  wrap.innerHTML='';
+  SECS_ALL.forEach(s=>{
+    const isVisible=visible.includes(s.id);
+    const isLocked=s.id==='today';
+    const row=document.createElement('div');
+    row.className='sp-sec-toggle'+(isVisible?' on':'')+(isLocked?' locked':'');
+    row.innerHTML=`<span class="sp-sec-name">${s.lbl}${isLocked?' <span style="color:var(--t3);font-size:10px;">· always on</span>':''}</span><span class="sp-sec-state">${isVisible?'ON':'OFF'}</span>`;
+    if(!isLocked){
+      row.addEventListener('click',()=>{
+        let next=visible.includes(s.id)?visible.filter(x=>x!==s.id):[...visible,s.id];
+        next=SECS_ALL.map(x=>x.id).filter(id=>next.includes(id));
+        lsSet('visible_sections',next);
+        const activeId=SECS[curSec]?.id;
+        refreshSecs();buildNav();
+        // Fix curSec after rebuild to avoid section overlap bug
+        const newIdx=SECS.findIndex(sec=>sec.id===activeId);
+        if(newIdx>=0){
+          curSec=newIdx;
+        }else{
+          // Active section was hidden — snap to Today
+          document.querySelectorAll('.sec').forEach(el=>el.classList.remove('active'));
+          const todayEl=document.getElementById('sec-today');
+          if(todayEl)todayEl.classList.add('active');
+          curSec=0;
+        }
+        updateNav();
+        renderSecToggles();
+        toast(s.lbl+(visible.includes(s.id)?' hidden':' shown'));
+      });
+    }
+    wrap.appendChild(row);
+  });
+}
+
+/* ════════════════════════════════════════════════
    INIT
    ════════════════════════════════════════════════ */
 function init(){
@@ -3210,6 +3292,8 @@ function init(){
   document.getElementById('settingsBtn').addEventListener('click',()=>{
     document.getElementById('settingsPanel').classList.add('show');
     updateUserUI();
+    renderSecToggles();
+    renderThemePicker();
   });
 
   // ── Settings panel ──
@@ -3242,14 +3326,14 @@ function init(){
     const isOn=ls('notify_enabled',false);
     if(!isOn){
       const ok=await enableNotifications();
-      if(ok){lsSet('notify_enabled',true);notifyToggle.classList.add('on');scheduleAllNotifications();}
+      if(ok){lsSet('notify_enabled',true);notifyToggle.classList.add('on');scheduleAllNotifications();scheduleMealReminders();}
     }else{
-      lsSet('notify_enabled',false);notifyToggle.classList.remove('on');clearNotifyTimers();toast('Reminders disabled.');
+      lsSet('notify_enabled',false);notifyToggle.classList.remove('on');clearNotifyTimers();clearMealTimers();toast('Reminders disabled.');
     }
   });
   const notifyMin=document.getElementById('notifyMin');
   notifyMin.value=ls('notify_min',5);
-  notifyMin.addEventListener('change',()=>{lsSet('notify_min',+notifyMin.value);scheduleAllNotifications();toast('Lead time: '+notifyMin.value+' min');});
+  notifyMin.addEventListener('change',()=>{lsSet('notify_min',+notifyMin.value);scheduleAllNotifications();scheduleMealReminders();toast('Lead time: '+notifyMin.value+' min');});
   document.getElementById('notifyTest').addEventListener('click',async()=>{
     const ok=await enableNotifications();
     if(ok)showNotif('🔔 Test Notification','This is what reminders will look like.');
@@ -3593,8 +3677,13 @@ function init(){
   // ── Schedule notifications ──
   if(ls('notify_enabled',false)&&typeof Notification!=='undefined'&&Notification.permission==='granted'){
     scheduleAllNotifications();
+    scheduleMealReminders();
   }
-  setInterval(scheduleAllNotifications,60*60*1000);
+  setInterval(()=>{scheduleAllNotifications();scheduleMealReminders();},60*60*1000);
+  // Reschedule when user returns to the app (timers can drift or be killed by OS)
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='visible'){scheduleAllNotifications();scheduleMealReminders();}
+  });
 
   // ── Right Now click + auto-refresh ──
   document.getElementById('rightNow')?.addEventListener('click',rightNowClick);
@@ -3603,45 +3692,8 @@ function init(){
   // ── Stats bar item clicks open the details modal ──
   document.querySelectorAll('.sb-item').forEach(it=>it.addEventListener('click',()=>{if(it.dataset.d)openDetails(it.dataset.d);}));
 
-  // ── Theme picker in settings ──
-  function renderThemePicker(){
-    const row=document.getElementById('spThemeRow');if(!row)return;
-    const cur=ls('theme','lime');
-    row.innerHTML='';
-    Object.entries(THEMES).forEach(([key,t])=>{
-      const b=document.createElement('button');
-      b.className='sp-theme-dot'+(key===cur?' sel':'');
-      b.title=t.n;b.style.background=t.hex;
-      b.addEventListener('click',()=>{applyTheme(key);renderThemePicker();toast('Theme: '+t.n);});
-      row.appendChild(b);
-    });
-  }
+  // ── Theme picker + section toggles in settings ──
   renderThemePicker();
-
-  // ── Section visibility toggles in settings ──
-  function renderSecToggles(){
-    const wrap=document.getElementById('spSecToggles');if(!wrap)return;
-    const visible=getVisibleSectionIds();
-    wrap.innerHTML='';
-    SECS_ALL.forEach(s=>{
-      const isVisible=visible.includes(s.id);
-      const isLocked=s.id==='today';
-      const row=document.createElement('div');
-      row.className='sp-sec-toggle'+(isVisible?' on':'')+(isLocked?' locked':'');
-      row.innerHTML=`<span class="sp-sec-name">${s.lbl}${isLocked?' <span style="color:var(--t3);font-size:10px;">· always on</span>':''}</span><span class="sp-sec-state">${isVisible?'ON':'OFF'}</span>`;
-      if(!isLocked){
-        row.addEventListener('click',()=>{
-          let next=visible.includes(s.id)?visible.filter(x=>x!==s.id):[...visible,s.id];
-          // preserve canonical order
-          next=SECS_ALL.map(x=>x.id).filter(id=>next.includes(id));
-          lsSet('visible_sections',next);
-          refreshSecs();buildNav();renderSecToggles();
-          toast(s.lbl+(visible.includes(s.id)?' hidden':' shown'));
-        });
-      }
-      wrap.appendChild(row);
-    });
-  }
   renderSecToggles();
 
   // ── Re-run onboarding button ──
