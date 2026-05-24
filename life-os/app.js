@@ -297,13 +297,13 @@ function getMacroTargets(){return ls('macro_targets',MACRO_DEFAULTS);}
 /* ── STORAGE ── */
 const ls=(k,fb=null)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):fb;}catch{return fb;}};
 const lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));fbWrite(k,v);}catch{}};
-const lsRm=k=>{try{localStorage.removeItem(k);}catch{}};
+const lsRm=k=>{try{localStorage.removeItem(k);fbRemove(k);}catch{}};
 const today=new Date().toISOString().slice(0,10);
 
 /* Keys that we sync (everything app-data, NOT auth/device-local) */
-const SYNC_KEY_PREFIXES=['daily:','water:','wt:','focus:','pr:','outfit:','journal:','session:','measurements:','schedule:','habit_meta:','habit_last:','habit_paused:','goal:','sleep:','steps:','gratitude:','review:','eating_window:'];
-const SYNC_KEYS_EXACT=['custom_checks','bookmarks','profile','custom_meals','macro_targets','custom_prs','custom_dashboard','habit_categories','water_goal','meal_templates','persona','theme','visible_sections','schedule_list'];
-const LOCAL_ONLY=['last_synced','splash:','pwa_dismissed','fb_config','fb_uid','fb_email','photo:','pwa_installed','pwa_dismissed_auth'];
+const SYNC_KEY_PREFIXES=['daily:','water:','wt:','focus:','pr:','outfit:','journal:','session:','measurements:','schedule:','habit_meta:','habit_last:','habit_paused:','goal:','sleep:','steps:','gratitude:','review:','eating_window:','review_dismissed:'];
+const SYNC_KEYS_EXACT=['custom_checks','bookmarks','profile','custom_meals','macro_targets','custom_prs','custom_dashboard','habit_categories','water_goal','meal_templates','persona','theme','visible_sections','schedule_list','onboarded','notify_min'];
+const LOCAL_ONLY=['last_synced','splash:','pwa_dismissed','fb_config','fb_uid','fb_email','photo:','pwa_installed','pwa_dismissed_auth','notify_enabled'];
 
 function collectSyncData(){
   const out={};
@@ -372,6 +372,15 @@ function fbWrite(k,v){
   const fk=k.replace(/[.#$\[\]]/g,'_');
   fbDb.ref(FB_PATH(fbUser.uid)+'/'+fk).set(v)
     .catch(e=>console.warn('fbWrite failed:',k,e));
+}
+
+function fbRemove(k){
+  if(!fbDb||!fbUser)return;
+  if(LOCAL_ONLY.some(p=>k.startsWith(p)))return;
+  if(!SYNC_KEY_PREFIXES.some(p=>k.startsWith(p))&&!SYNC_KEYS_EXACT.includes(k))return;
+  const fk=k.replace(/[.#$\[\]]/g,'_');
+  fbDb.ref(FB_PATH(fbUser.uid)+'/'+fk).remove()
+    .catch(e=>console.warn('fbRemove failed:',k,e));
 }
 
 // Upload ALL local sync-eligible data to Firebase in one batch (fills gaps on first sign-in)
